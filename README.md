@@ -1,7 +1,6 @@
 # Ra Radiosonde Receiver - Firmware for the Heltec V3 Board
 
-This is a ported firmware for a Ra Radiosonde Receiver running on ESP32 HW (like TTGO Board or Heltec LoRa32 V3).
-As the named boards have a less capable RX chip, fewer sonde types than the original Ra HW can be decoded.
+This is a ported firmware for a Ra Radiosonde Receiver running on the **Heltec LoRa32 V3** board.
 
 For a project overview see [Ra Hardware](https://github.com/einergehtnochrein/ra-hardware)
 
@@ -11,5 +10,5 @@ For installation you can run the following command.
 Replace `<filename.bin>` by the path to the downloaded .bin file, replace `<port>` by your port. 
 
 ```
-esptool.exe --chip esp32 --port <port> --baud 921600  --before default-reset --after hard-reset write-flash  -z --flash-mode keep --flash-freq keep --flash-size keep 0x0 <filename.bin>
+esptool --chip esp32s3 --port <port> --baud 921600  --before default_reset --after hard_reset write_flash  -z --flash_mode keep --flash_freq keep --flash_size keep 0x0 <filename.bin>
 ```
