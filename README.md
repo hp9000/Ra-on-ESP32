@@ -7,7 +7,7 @@ This is for the **Heltec LoRa32 V3** board. If you have a TTGO board switch to t
 Running on battery the Heltec board is sometimes resetting. You can avoid this by using a 'big' battery (or a Powerbank on USB). I could not find the problem in SW, so I think, it is a HW problem. 
 For this bord there will be no new versions for more sondes. Currently **RS41 and DFM** sondes can be decoded. 
 
-## Installation
+## Installation for the Heltec V3 Board
 
 For installation you can run the following command.
 Replace `<filename.bin>` by the path to the downloaded .bin file, replace `<port>` by your port. 
