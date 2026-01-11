@@ -2,11 +2,11 @@
 
 This is a ported firmware for a Ra Radiosonde Receiver running on ESP32 HW (like TTGO Board or Heltec LoRa32 V3).
 As the named boards have a less capable RX chip, fewer sonde types than the original Ra HW can be decoded.
+Currently both boards can decode **RS41** and **DFM** sondes.
 
 ## Installation for the TTGO board
-
-For installation you can run the following command.
-Replace `<filename.bin>` by the path to the downloaded .bin file, replace `<port>` by your port. 
+Click on **Releases** on the right and download the latest FW 'Ra on TTGO VX.Y'
+For installation run the following command. Replace `<filename.bin>` by the path to the downloaded .bin file, replace `<port>` by your port. 
 
 ```
 esptool.exe --chip esp32 --port <port> --baud 921600  --before default-reset --after hard-reset write-flash  -z --flash-mode keep --flash-freq keep --flash-size keep 0x0 <filename.bin>
@@ -14,11 +14,11 @@ esptool.exe --chip esp32 --port <port> --baud 921600  --before default-reset --a
 
 ## Installation for the Heltec V3 Board
 
-For installation you can run the following command.
-Replace `<filename.bin>` by the path to the downloaded .bin file, replace `<port>` by your port. 
+Click on **Releases** on the right and download the latest FW 'Ra on HeltecV3 VX.Y'
+For installation run the following command. Replace `<filename.bin>` by the path to the downloaded .bin file, replace `<port>` by your port. 
 
 ```
 esptool --chip esp32s3 --port <port> --baud 921600  --before default_reset --after hard_reset write_flash  -z --flash_mode keep --flash_freq keep --flash_size keep 0x0 <filename.bin>
 ```
 Running on battery the Heltec board is sometimes resetting. You can avoid this by using a 'big' battery (or a Powerbank on USB). I could not find the problem in SW, so I think, it is a HW problem. 
-For this bord there will be no new versions for more sondes. Currently **RS41 and DFM** sondes can be decoded. 
+For this bord there will be no more versions for more sondes. 
