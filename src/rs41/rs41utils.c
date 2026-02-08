@@ -136,8 +136,6 @@ static uint8_t _RS41_null;
     }
 
 
-
-#warning "HP: todo: fix reed-solomon code"
 /* Reed-Solomon error correction */
 LPCLIB_Result _RS41_checkReedSolomon (uint8_t rawFrame[], int *pNumErrors, _Bool *pLongFrame)
 {

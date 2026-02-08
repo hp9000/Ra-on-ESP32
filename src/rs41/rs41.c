@@ -232,9 +232,8 @@ static void _RS41_sendKiss (RS41_InstanceData *instance)
                 );
 
     if (length > 0) {
-        char *name = "RS41";
         ttgo_setDisplayData(latitude,longitude,instance->gps.observerLLA.alt,
-                            instance->rxFrequencyMHz,instance->name,name,instance->rssi,instance->frameCounter);
+                            instance->rxFrequencyMHz,instance->name,instance->rssi,instance->frameCounter);
         SYS_send2Host(HOST_CHANNEL_INFO, s);
     }
 }
@@ -320,6 +319,7 @@ LPCLIB_Result RS41_processBlock (
 
     /* Error correction */
     handle->nCorrectedErrors = 0;
+    #warning "HP: todo: reed-solomon causes reset"
     // if (_RS41_checkReedSolomon (handle->pRawData, &handle->nCorrectedErrors, &longFrame) != LPCLIB_SUCCESS) {
     //     return LPCLIB_ERROR;
     // }

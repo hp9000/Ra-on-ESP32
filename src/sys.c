@@ -35,11 +35,12 @@
 #include "espPorting.h"
 #include "esp_task_wdt.h"
 #include "bridge.h"
-//#include "LILYGO.h"
-//HP #include "adf7021.h"
+#ifndef RX_SX1278
+#include "adf7021.h"
+#endif
 #include "app.h"
 // #include "beacon.h"
-// #include "bl652.h"
+#include "bl652.h"
 // #include "bootloader.h"
 // #include "cf06.h"
 // #include "china1.h"
@@ -632,21 +633,7 @@ static const UART_Config _uartFlushTx[] = {
 #else
 
 
-static const SX1278_Config radioModeVaisala[] = {
-// HP
-//     { .reg = 0x01, .value = 0b00000001 }, // RegOpMode -> FSK Mode standby
-//     { .reg = 0x02, .value = 0x1A },       // RegBitrateMsb -> 4800 bps
-//     { .reg = 0x03, .value = 0x0B },       // RegBitrateLsb
-// //    { .reg = 0x04, .value = 0x00 },       // RegFdevMsb -> 2.4 kHz
-// //    { .reg = 0x05, .value = 0x27 },       // RegFdevLsb
-// //    { .reg = 0x0C, .value = 0b00100000 }, // G1 = highest gain, if not controlled by AGC (0x0d)
-//     { .reg = 0x0D, .value = 0b00011000 }, // RegRxConfig -> AFC & AGC, gain by AGC
-//     { .reg = 0x12, .value = 0b00001110 }, // RegRxBw  ->  6.6 kHz
-//     { .reg = 0x13, .value = 0b00001101 }, // RegAfcBw -> 12.5 kHz 
-//     { 0xFF, 0xFF } // Ende-Markierung
-// };
-
-// AI: 
+static const SX1278_Config radioModeVaisala[] = { 
     { .reg = 0x01, .value = 0b00000000 }, // RegOpMode -> FSK Mode sleep
     { .reg = 0x02, .value = 0x1A },       // RegBitrateMsb -> 4800 bps
     { .reg = 0x03, .value = 0x0B },       // RegBitrateLsb
@@ -671,7 +658,6 @@ static const SX1278_Config radioModeGraw[] = {
 //     { 0xFF, 0xFF } // Ende-Markierung
 // };
 
-// AI:
     { .reg = 0x01, .value = 0b00000000 }, // RegOpMode -> FSK Mode sleep
     { .reg = 0x02, .value = 0x32},        // RegBitrateMsb -> 2500 bps
     { .reg = 0x03, .value = 0x00},        // RegBitrateLsb
@@ -857,7 +843,6 @@ static void _SYS_reportControls (SYS_Handle handle)
 
 static void _SYS_setRadioFrequency (SYS_Handle handle, float frequency)
 {
-    //ESP_LOGE("HP","frequency = %f\n", frequency);
     if (frequency < 400e6f) {
         frequency = 400e6f;
     }
@@ -865,24 +850,26 @@ static void _SYS_setRadioFrequency (SYS_Handle handle, float frequency)
         frequency = 406.1e6f;
     }
 
-    // LPC_MAILBOX->IRQ0SET = (1u << 30);
+#ifdef RX_SX1278
     MAILBOX_IRQHandler((uint32_t)1u << 30);
-    // SRSC_pauseResume(handle->srsc, ENABLE);
-    // IMET_pauseResume(handle->imet, ENABLE);
-    // MON_DSP_reset();
+    handle->currentFrequency = frequency;
+    ttgo_setDisplayFreq(frequency);
+    MAILBOX_IRQHandler((uint32_t)1u << 31);
+#else
+    LPC_MAILBOX->IRQ0SET = (1u << 30);
 
-    // ADF7021_setPLL(radio, frequency - 100000);
+    SRSC_pauseResume(handle->srsc, ENABLE);
+    IMET_pauseResume(handle->imet, ENABLE);
+    MON_DSP_reset();
 
-    SX1278_setRadioFrequency(frequency);
+    ADF7021_setPLL(radio, frequency - 100000);
     handle->currentFrequency = frequency;
 
-    ttgo_setDisplayFreq(frequency);
-
-    // LPC_MAILBOX->IRQ0SET = (1u << 31);
-    MAILBOX_IRQHandler((uint32_t)1u << 31);
-    // SRSC_pauseResume(handle->srsc, DISABLE);
-    // IMET_pauseResume(handle->imet, DISABLE);
-    // MON_DSP_reset();
+    LPC_MAILBOX->IRQ0SET = (1u << 31);
+    SRSC_pauseResume(handle->srsc, DISABLE);
+    IMET_pauseResume(handle->imet, DISABLE);
+    MON_DSP_reset();
+#endif
 }
 
 
@@ -904,7 +891,7 @@ LPCLIB_Result SYS_enableDetector (SYS_Handle handle, float frequency, SONDE_Dete
 #endif
 
     if ((detector != handle->sondeDetector) || (frequency != handle->currentFrequency) || handle->monitorUpdate) {
-//ESP_LOGE("HP","F=%f (%f), D=%d (%d) mU=%d", frequency,handle->currentFrequency, detector, handle->sondeDetector, handle->monitorUpdate);
+ESP_LOGE("HP","F=%f (%f), D=%d (%d) mU=%d", frequency,handle->currentFrequency, detector, handle->sondeDetector, handle->monitorUpdate);
 //         PDM_stop(handle->pdm);
 
         handle->sondeDetector = detector;
@@ -929,7 +916,7 @@ LPCLIB_Result SYS_enableDetector (SYS_Handle handle, float frequency, SONDE_Dete
         } else {
             switch (detector) {
             case SONDE_DETECTOR_C34_C50:
-#ifdef ESP_PLATFORM
+#ifdef RX_SX1278
                 SX1278_ioctl(radioModeC34C50);
 #else
                 ADF7021_setDemodClockDivider(radio, CONFIG_getDemodClockDivider(0));
@@ -985,7 +972,7 @@ LPCLIB_Result SYS_enableDetector (SYS_Handle handle, float frequency, SONDE_Dete
 
             case SONDE_DETECTOR_DFM:
             ESP_LOGE("HP","SONDE_DETECTOR_DFM called");
-#ifndef ESP_PLATFORM
+#ifndef RX_SX1278
                 ADF7021_setDemodClockDivider(radio, CONFIG_getDemodClockDivider(2500));
                 ADF7021_setBitRate(radio, 2500);
                 ADF7021_ioctl(radio, radioModeGraw);
@@ -1044,7 +1031,7 @@ LPCLIB_Result SYS_enableDetector (SYS_Handle handle, float frequency, SONDE_Dete
 //                 break;
 
             case SONDE_DETECTOR_RS41_RS92:
-#ifndef ESP_PLATFORM
+#ifndef RX_SX1278
                 ADF7021_setDemodClockDivider(radio, CONFIG_getDemodClockDivider(4800));
                 ADF7021_setBitRate(radio, 4800);
                 ADF7021_ioctl(radio, radioModeVaisala);
@@ -1053,6 +1040,7 @@ LPCLIB_Result SYS_enableDetector (SYS_Handle handle, float frequency, SONDE_Dete
 #endif
                 _SYS_setRadioFrequency(handle, frequency);
                 _SYS_reportRadioFrequency(handle);  /* Inform host */
+ESP_LOGE("HP","SONDE_DETECTOR_RS41_RS92 called, F=%f", frequency);
 
 //                LPC_MAILBOX->IRQ0SET = (1u << 0); //TODO
                 MAILBOX_IRQHandler((uint32_t)1u << 0);
@@ -1196,140 +1184,145 @@ LPCLIB_Result SYS_send2Host (int channel, const char *message)
     return LPCLIB_SUCCESS;
 }
 
+#ifndef ARDUINO_ARCH_ESP32
 
-// //TODO: duration=0: off, duration=-1: on, duration>0: on for specified #milliseconds
-// LPCLIB_Result SYS_sendBreak (int durationMilliseconds)
-// {
-//     sysContext.blePortBreakTime = durationMilliseconds;
-//     sysContext.blePortSetBreak = true;
+//TODO: duration=0: off, duration=-1: on, duration>0: on for specified #milliseconds
+LPCLIB_Result SYS_sendBreak (int durationMilliseconds)
+{
+    sysContext.blePortBreakTime = durationMilliseconds;
+    sysContext.blePortSetBreak = true;
 
-//     return LPCLIB_SUCCESS;
-// }
+    return LPCLIB_SUCCESS;
+}
 
 
 
 /** Enter low-power mode */
 static void SYS_sleep (SYS_Handle handle)
 {
-    // // uint32_t OldSystemCoreClock;
+    // uint32_t OldSystemCoreClock;
 
 
-    // // /* Reset M0 (keep it there) */
-    // // extern uint32_t M0IMAGE_start;
-    // // LPC_SYSCON->CPUCTRL = (LPC_SYSCON->CPUCTRL | 0xC0C40000) | (1 << 3) | (1 << 5);
+    // /* Reset M0 (keep it there) */
+    // extern uint32_t M0IMAGE_start;
+    // LPC_SYSCON->CPUCTRL = (LPC_SYSCON->CPUCTRL | 0xC0C40000) | (1 << 3) | (1 << 5);
 
-    // handle->linkEstablished = false;
+    handle->linkEstablished = false;
 
-    // SCANNER_setMode(scanner, 1);
+    SCANNER_setMode(scanner, 1);
 
-//     /* Stop BLE UART transmission.
-//      * NOTE: If we didn't stop the UART cleanly, it could be stopped by deep sleep in the middle
-//      * of a character. A zero bit would then be interpreted as break by the BL652, and in this case
-//      * the BL652 might stop advertising, a situation from which we would not be able to recover.
-//      */
-//     UART_ioctl(blePort, _uartFlushTx);
+    /* Stop BLE UART transmission.
+     * NOTE: If we didn't stop the UART cleanly, it could be stopped by deep sleep in the middle
+     * of a character. A zero bit would then be interpreted as break by the BL652, and in this case
+     * the BL652 might stop advertising, a situation from which we would not be able to recover.
+     */
+    UART_ioctl(blePort, _uartFlushTx);
 
-//     handle->sleeping = true;
+    handle->sleeping = true;
 
-//     /* Enable BLE RXD line interrupt (allow pending interrupt to happen now) */
-//     NVIC_EnableIRQ(PIN_INT4_IRQn);
+    /* Enable BLE RXD line interrupt (allow pending interrupt to happen now) */
+    NVIC_EnableIRQ(PIN_INT4_IRQn);
 
-//     /* All GPIO pins to lowest power mode. */
-//     BSP_prepareSleep();
+    /* All GPIO pins to lowest power mode. */
+    BSP_prepareSleep();
 
-//     /* Remember system clock frequency */
-//     OldSystemCoreClock = SystemCoreClock;
+    /* Remember system clock frequency */
+    OldSystemCoreClock = SystemCoreClock;
 
-// #if (BOARD_RA == 1)
-//     CLKPWR_setCpuClock(12000000ul, CLKPWR_CLOCK_IRC);
+#if (BOARD_RA == 1)
+    CLKPWR_setCpuClock(12000000ul, CLKPWR_CLOCK_IRC);
 
-//     /* Wakeup source: UART RXD line (pin interrupt 4) */
-//     LPC_SYSCON->STARTERSET1 = (1u << 1);    // PINT4 wakeup
+    /* Wakeup source: UART RXD line (pin interrupt 4) */
+    LPC_SYSCON->STARTERSET1 = (1u << 1);    // PINT4 wakeup
 
-//     /* Disable BOD reset */
-//     LPC_SYSCONEXTRA->BODCTRL = (LPC_SYSCONEXTRA->BODCTRL & ~(1u << 2)) | (1u << 6);
-// #endif
-// #if (BOARD_RA == 2)
-//     CLKPWR_setCpuClock(12000000ul, CLKPWR_CLOCK_FRO12);
+    /* Disable BOD reset */
+    LPC_SYSCONEXTRA->BODCTRL = (LPC_SYSCONEXTRA->BODCTRL & ~(1u << 2)) | (1u << 6);
+#endif
+#if (BOARD_RA == 2)
+    CLKPWR_setCpuClock(12000000ul, CLKPWR_CLOCK_FRO12);
 
-//     /* Wakeup source: UART RXD line (pin interrupt 4) */
-//     LPC_SYSCON->STARTERSET1 = (1u << 0);    // PINT4 wakeup
+    /* Wakeup source: UART RXD line (pin interrupt 4) */
+    LPC_SYSCON->STARTERSET1 = (1u << 0);    // PINT4 wakeup
 
-//     /* Disable BOD reset */
-//     LPC_SYSCONEXTRA->BODCTRL = (LPC_SYSCONEXTRA->BODCTRL & ~(1u << 2)) | (1u << 6);
+    /* Disable BOD reset */
+    LPC_SYSCONEXTRA->BODCTRL = (LPC_SYSCONEXTRA->BODCTRL & ~(1u << 2)) | (1u << 6);
 
-//     //TODO
-//     LPC_SYSCON->PDSLEEPCFG0 |= 0
-//             | (1u << 4)         /* FRO off */
-//             | (1u << 7)         /* BOD Reset off */
-//             | (1u << 8)         /* BOD IRQ off */
-//             | (1u << 17)        /* ROM off */
-//             ;
-// #endif
+    //TODO
+    LPC_SYSCON->PDSLEEPCFG0 |= 0
+            | (1u << 4)         /* FRO off */
+            | (1u << 7)         /* BOD Reset off */
+            | (1u << 8)         /* BOD IRQ off */
+            | (1u << 17)        /* ROM off */
+            ;
+#endif
 
-//     /* Enter Power Down mode, and wait for wake-up. */
-//     //NOTE: Requires privileges! That's why RTX must run with privileged tasks for now
-//     CLKPWR_enterPowerSaving(CLKPWR_POWERSAVING_DEEPSLEEP);
+    /* Enter Power Down mode, and wait for wake-up. */
+    //NOTE: Requires privileges! That's why RTX must run with privileged tasks for now
+    CLKPWR_enterPowerSaving(CLKPWR_POWERSAVING_DEEPSLEEP);
 
-//     NVIC_DisableIRQ(PIN_INT4_IRQn);
+    NVIC_DisableIRQ(PIN_INT4_IRQn);
 
-//     /* Re-enable the PLL */
-// #if (BOARD_RA == 1)
-//     CLKPWR_setCpuClock(OldSystemCoreClock, CLKPWR_CLOCK_IRC);
-// #endif
-// #if (BOARD_RA == 2)
-//     CLKPWR_setCpuClock(OldSystemCoreClock, CLKPWR_CLOCK_FRO12);
-// #endif
+    /* Re-enable the PLL */
+#if (BOARD_RA == 1)
+    CLKPWR_setCpuClock(OldSystemCoreClock, CLKPWR_CLOCK_IRC);
+#endif
+#if (BOARD_RA == 2)
+    CLKPWR_setCpuClock(OldSystemCoreClock, CLKPWR_CLOCK_FRO12);
+#endif
 
-//     /* Restore GPIO state. */
-//     BSP_wakeup();
+    /* Restore GPIO state. */
+    BSP_wakeup();
 
-//     handle->sleeping = false;
+    handle->sleeping = false;
 
-//     /* Wait some time before accessing the radio. */
-//     osDelay(10);
+    /* Wait some time before accessing the radio. */
+    osDelay(10);
 
-//     /* Restore radio mode */
-//     SONDE_Detector detector = handle->sondeDetector;
-//     handle->sondeDetector = _SONDE_DETECTOR_UNDEFINED_;
-//     handle->monitor = false;
-//     SYS_enableDetector(handle, handle->currentFrequency, detector);
+    /* Restore radio mode */
+    SONDE_Detector detector = handle->sondeDetector;
+    handle->sondeDetector = _SONDE_DETECTOR_UNDEFINED_;
+    handle->monitor = false;
+    SYS_enableDetector(handle, handle->currentFrequency, detector);
 
-//     /* Start M0 */
-//     LPC_SYSCON->CPSTACK = ((volatile uint32_t *)&M0IMAGE_start)[0];
-//     LPC_SYSCON->CPBOOT = ((volatile uint32_t *)&M0IMAGE_start)[1];
-//     LPC_SYSCON->CPUCTRL = ((LPC_SYSCON->CPUCTRL | 0xC0C40000) | (1 << 3)) & ~(1 << 5);
+    /* Start M0 */
+    LPC_SYSCON->CPSTACK = ((volatile uint32_t *)&M0IMAGE_start)[0];
+    LPC_SYSCON->CPBOOT = ((volatile uint32_t *)&M0IMAGE_start)[1];
+    LPC_SYSCON->CPUCTRL = ((LPC_SYSCON->CPUCTRL | 0xC0C40000) | (1 << 3)) & ~(1 << 5);
 
-// #if (BOARD_RA == 2)
-//     /* Install handler for link-down signal from Bluetooth module */
-//     GPIO_ioctl(bleLinkDownHandlerEnable);
-// #endif
+#if (BOARD_RA == 2)
+    /* Install handler for link-down signal from Bluetooth module */
+    GPIO_ioctl(bleLinkDownHandlerEnable);
+#endif
 }
-
+#endif
 
 
 /* Read a new RSSI value in dBm. */
 LPCLIB_Result SYS_readRssi (SYS_Handle handle, float *rssi)
 {
-    // (void)handle;
+    (void)handle;
 
     float dBm;
 
-    // /* Get a new RSSI value from radio */
-    // ADF7021_readRSSI(radio, &dBm);
-    SX1278_readRSSI(&dBm);
+    /* Get a new RSSI value from radio */
+#ifndef RX_SX1278
+    ADF7021_readRSSI(radio, &dBm);
 
-#warning TODO: RSSI correction values 
-    // /* Correct for LNA gain */
-    // if (handle->attenuatorActive) {
-    //     dBm += config_g->rssiCorrectionLnaOff;
-    // }
-    // else {
-    //     dBm += config_g->rssiCorrectionLnaOn;
-    // }
+
+    /* Correct for LNA gain */
+    if (handle->attenuatorActive) {
+        dBm += config_g->rssiCorrectionLnaOff;
+    }
+    else {
+        dBm += config_g->rssiCorrectionLnaOn;
+    }
+
+#else
+    SX1278_readRSSI(&dBm);
+#endif
 
     *rssi = dBm;
-
+    
     return LPCLIB_SUCCESS;
 }
 
@@ -1370,13 +1363,13 @@ static float _SYS_getFilteredRssi (SYS_Handle handle)
 
     /* Correct for LNA gain */
     adjustedLevel = level;
-    #warning TODO: RSSI correction values
-    // if (handle->attenuatorActive) {
-    //     adjustedLevel += config_g->rssiCorrectionLnaOff;
-    // }
-    // else {
-    //     adjustedLevel += config_g->rssiCorrectionLnaOn;
-    // }
+
+    if (handle->attenuatorActive) {
+        adjustedLevel += config_g->rssiCorrectionLnaOff;
+    }
+    else {
+        adjustedLevel += config_g->rssiCorrectionLnaOn;
+    }
 
     return adjustedLevel;
 }
@@ -1515,10 +1508,12 @@ static const ADF7021_Config _SYS_radioConfigAfterAttenuatorOff[] = {
     ADF7021_CONFIG_END
 };
 
+#endif /* ARDUINO_ARCH_ESP32 */
 
 /* Control the attenuator (LNA) */
 static void SYS_controlAutoAttenuator (SYS_Handle handle, float dBm)
 {
+#ifndef RX_SX1278    
     if (GPIO_readBit(GPIO_LNA_GAIN) == 0) {
         /* Disable attenuator if level falls below -80 dBm */
         if (dBm <= -80.0f) {
@@ -1548,8 +1543,10 @@ static void SYS_controlAutoAttenuator (SYS_Handle handle, float dBm)
 
     /* Remember what state the attenuator is in */
     handle->attenuatorActive = (GPIO_readBit(GPIO_LNA_GAIN) == 0);
+#else
+    handle->attenuatorActive = false;
+#endif 
 }
-#endif /* ARDUINO_ARCH_ESP32 */
 
 
 /* Return last RSSI measurement in an RX frame */
@@ -1649,6 +1646,7 @@ static void _SYS_osalCallback (TimerHandle_t xTimer)
             break;
 
         case SYS_TIMERMAGIC_INACTIVITY:
+        ESP_LOGE("HP","_SYS_osalCallback: SYS_TIMERMAGIC_INACTIVITY");
 #ifndef ARDUINO_ARCH_ESP32
             pMessage = osMailAlloc(sysContext.queue, 0);
             if (pMessage == NULL) {
@@ -1659,9 +1657,9 @@ static void _SYS_osalCallback (TimerHandle_t xTimer)
             pMessage->event.opcode = APP_EVENT_SUSPEND;
             osMailPut(sysContext.queue, pMessage);
 #else
-            aMessage.opcode = SYS_OPCODE_EVENT;
-            xQueueSendFromISR(sysContext.queue, &aMessage, &xHigherPriorityTaskWoken);
-            if( xHigherPriorityTaskWoken == pdTRUE ){portYIELD_FROM_ISR();}
+            // aMessage.opcode = SYS_OPCODE_EVENT;
+            // xQueueSendFromISR(sysContext.queue, &aMessage, &xHigherPriorityTaskWoken);
+            // if( xHigherPriorityTaskWoken == pdTRUE ){portYIELD_FROM_ISR();}
 #endif
             break;
     }
@@ -1770,7 +1768,7 @@ if (cl[0] != 0) {
                             ttgo_getSerialNo(),
                             0x05000000,
                             /* handle->hasPowerScript ? 1 :*/ 0,
-                            esp_reset_reason()    // HP BOOTLOADER_getVersion()//,
+                            esp_reset_reason()    // BOOTLOADER_getVersion(),
                             );
                     SYS_send2Host(HOST_CHANNEL_PING, s);
 
@@ -2295,16 +2293,16 @@ void SYS_thread (void *param)
     handle->rssiTick = xTimerCreate( "RSSI-Timer", pdMS_TO_TICKS(40), pdTRUE , ( void * ) SYS_TIMERMAGIC_RSSI, _SYS_osalCallback );
     xTimerStart( handle->rssiTick, pdMS_TO_TICKS(40) );
 
-#ifndef ARDUINO_ARCH_ESP32
     /* Detector for Bluetooth link status.
      * With a script in the BL652, disconnection is signalled by the module via the
      * BLE_EXTRA1 line going low. With no such script, receiving no data from the
      * host for some time is treated as a disconnect event.
      */
 //    handle->inactivityTimeout = osTimerCreate(osTimer(inactivityTimer), osTimerOnce, (void *)SYS_TIMERMAGIC_INACTIVITY);
-    handle->inactivityTimeout = xTimerCreate( "ACTIVITY-Timer",pdMS_TO_TICKS(INACTIVITY_TIMEOUT-5000), pdFALSE, (void *)SYS_TIMERMAGIC_INACTIVITY, _SYS_osalCallback);
-    xTimerStart( handle->inactivityTimeout, 0);
+    // handle->inactivityTimeout = xTimerCreate( "ACTIVITY-Timer",pdMS_TO_TICKS(INACTIVITY_TIMEOUT-5000), pdFALSE, (void *)SYS_TIMERMAGIC_INACTIVITY, _SYS_osalCallback);
+    // xTimerStart( handle->inactivityTimeout, 0);
 
+#ifndef ARDUINO_ARCH_ESP32
 #if (BOARD_RA == 1)
     osTimerStart(handle->inactivityTimeout, INACTIVITY_TIMEOUT);
 #else
@@ -2425,6 +2423,7 @@ void SYS_thread (void *param)
             case SYS_OPCODE_BUFFER_COMPLETE:
                 {
                     t1 = millis();
+ESP_LOGE("HP", "Buffer complete, processing... t1 = %lu", t1);
                     /* Find out which buffer to use */
                     int bufferIndex = pMessage->bufferIndex;
 
@@ -2659,8 +2658,7 @@ void SYS_thread (void *param)
                         /* Buffer may now be reused */
                         ipc[bufferIndex].valid = 0;
                     }
-                // t2 = millis();
-                // ESP_LOGE("HP","Buffer complete processing time: %lu ms",t2 - t1);
+                t2 = millis();
                 }
                 break;
             case SYS_OPCODE_GET_RSSI:
@@ -2681,7 +2679,7 @@ void SYS_thread (void *param)
                             }
 
                             rate1 = 0;
-//                            SYS_controlAutoAttenuator(handle, handle->currentRssi);
+                            SYS_controlAutoAttenuator(handle, handle->currentRssi);
                         }
                     }
                     else {

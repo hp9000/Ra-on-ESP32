@@ -50,7 +50,7 @@ const Config_t *config_g = &_factorySettingsDefault;
 
 
 /* Calculate the CRC32 checksum of a configuration and validate the configuration */
-/* HP
+#ifndef ESP_PLATFORM
 static LPCLIB_Result _CONFIG_validateChecksum (volatile const Config_t *pConfig)
 {
     CRC_Handle crc = LPCLIB_INVALID_HANDLE;
@@ -79,15 +79,15 @@ static LPCLIB_Result _CONFIG_validateChecksum (volatile const Config_t *pConfig)
 
     return (checksum == pConfig->crc) ? LPCLIB_SUCCESS : LPCLIB_ERROR;
 }
-*/
+#endif
 
 
 void CONFIG_open (void)
 {
     /* Use user supplied configuration if valid, otherwise fall back to factory defaults */
-//HP    if (_CONFIG_validateChecksum(&_factorySettingsUser) == LPCLIB_SUCCESS) {
+//    if (_CONFIG_validateChecksum(&_factorySettingsUser) == LPCLIB_SUCCESS) {
         config_g = (const Config_t *)&_factorySettingsUser;
-//HP   }
+//   }
 }
 
 /************** Access functions **************/

@@ -38,9 +38,9 @@ extern "C" {
         return myLilyGoBoard.getBatVoltage();
     };
 
-    void ttgo_setDisplayData(double lat, double lon, double alt, float freq,char *id,const char *type, float rssi, uint32_t frameCounter)
+    void ttgo_setDisplayData(double lat, double lon, double alt, float freq, char *id, float rssi, uint32_t frameCounter)
     {
-        myLilyGoBoard.setDisplayData(lat, lon, alt, freq, id, type, rssi, frameCounter);
+        myLilyGoBoard.setDisplayData(lat, lon, alt, freq, id, rssi, frameCounter);
     };
 
     void ttgo_toggleDebugScreen() {

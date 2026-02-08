@@ -21,7 +21,7 @@ void ttgo_writeDetector2Eeprom(uint8_t detector);
 uint32_t ttgo_getFrequency();
 void ttgo_setSysFrequency(uint32_t FreqHz);
 uint8_t ttgo_getDetector();
-void ttgo_setDisplayData(double, double, double, float ,char* ,const char*, float, uint32_t);
+void ttgo_setDisplayData(double, double, double, float ,char* , float, uint32_t);
 void ttgo_setDisplayFreq(float);
 void ttgo_toggleDebugScreen();
 void ttgo_debug(int,int);

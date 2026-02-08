@@ -38,10 +38,10 @@ LilyGo::LilyGo() {
 void LilyGo::setup() {
     uint8_t baseMac[6];
     
-    esp_base_mac_addr_get(baseMac);   // Bluetooth MAC: 48:CA:43:B5:87:6C
-    SerialNoEsp = baseMac[3]<<16 |baseMac[4]<<8 |baseMac[5];
     BTisConnected = false;
     BLE_setup(true);   
+    esp_base_mac_addr_get(baseMac);   // Bluetooth MAC: 48:CA:43:B5:87:6C
+    SerialNoEsp = baseMac[3]<<16 |baseMac[4]<<8 |baseMac[5];
     EEPROM_setup();
     SX1278_setup();
     OLED_setup();
@@ -126,19 +126,6 @@ void LilyGo::EEPROM_setup() {
     freqMhz = frequencyInEeprom/1e6;
 }
 
-// void LilyGo::EEPROM_readCfg()
-// {
-//     EEPROM.begin(5);
-//     frequencyInEeprom = EEPROM.readLong(0);
-//     detectorInEeprom  = EEPROM.readByte(4);
-//     if((frequencyInEeprom < 400e6)||(frequencyInEeprom > 406e6)||detectorInEeprom > 15) //SONDE_DETECTOR_LMS6
-//     {
-//         frequencyInEeprom = 405100000;
-//         detectorInEeprom  = 0;  // SONDE_DETECTOR_RS41_RS92
-//     }
-//     EEPROM.end();
-// }
-
 void LilyGo::EEPROM_writeCfg(uint32_t frequency)
 {
     EEPROM.begin(5);
@@ -152,7 +139,6 @@ void LilyGo::EEPROM_writeCfg(uint8_t detector)
     EEPROM.writeByte(4,detector);
     EEPROM.commit();
 }
-
 
 uint8_t sx1278ReadRegister(uint8_t reg) {
   digitalWrite(PIN_CS, LOW);
@@ -183,10 +169,8 @@ void LilyGo::SX1278_setBitRate(uint16_t bitrate) {
 }
 
 void LilyGo::SX1278_setRadioFrequency(float freqInHz) {
-  //ESP_LOGE("HP","frequency = %f\n", freqInHz);
   uint8_t spiBuff[32];
   int32_t freq = (uint32_t)(freqInHz/SX127x_FREQUENCY_STEP_SIZE);
-  //Serial.printf("SX1278_setRadioFrequency: freqInHz=%f Reg = 0x%06x\n",freqInHz, freq);
 
   sx1278WriteRegister0(0x01, 0x01); // Standby mode, FSK
   delay(2);
@@ -211,7 +195,7 @@ void LilyGo::SX1278_setup() {
     pinMode(PIN_RST, OUTPUT);
 
     digitalWrite(PIN_CS, HIGH); // Deselect the SX1278
-     // SPI setup
+    // SPI setup
     SPI.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_CS);
     // Reset the SX1278
     digitalWrite(PIN_RST, LOW);
@@ -230,9 +214,7 @@ void LilyGo::SX1278_setup() {
     sx1278WriteRegister0(0x30, 0x00);       // 
     sx1278WriteRegister0(0x31, 0x00);       // Continuous Mode aktivieren (PacketMode Bit 6 = 0)
     sx1278WriteRegister0(0x40, 0x00);       // DIO2 Mapping auf "Data" setzen
-   
-    //ESP_LOGE("HP","SX1278 setup complete.");
-
+ESP_LOGE("HP","SX1278 setup complete.");
 }
 
 void LilyGo::SX1278_ioctl(const SX1278_Config config[]) {
@@ -269,18 +251,15 @@ void LilyGo::a100msTask()
             OLED_updateScreen(SCREEN_SONDEDATA); 
 }
 
-void LilyGo::setDisplayData(double lat_in, double lon_in, double alt_in, float freq_in,char *id_in,const char *type_in, float rssi_in, uint32_t frameCounter)
+void LilyGo::setDisplayData(double lat_in, double lon_in, double alt_in, float freq_in,char *id_in, float rssi_in, uint32_t frameCounter)
 {
    lat  = lat_in;
    lon  = lon_in;
    freqMhz = freq_in;
    alt  = alt_in;
    rssi = rssi_in;
-   debug_frameNr = frameCounter;
+   debug_RS41frameNr = frameCounter;
    strcpy(id,id_in);
-   strcpy(type,type_in);
-   if(strncmp(type,"RS41",4)==0) 
-        type[4]=0;
    OLED_updateScreen();
 }
 
@@ -303,7 +282,6 @@ void LilyGo::OLED_updateScreen(uint8_t screen)
 
     switch (activeScreen) {
         case SCREEN_STARTUP:
-            sprintf(s,"V%d.%d",FIRMWARE_VERSION_MAJOR,FIRMWARE_VERSION_MINOR);
             display.init();
             display.flipScreenVertically();
             display.clear();
@@ -312,36 +290,26 @@ void LilyGo::OLED_updateScreen(uint8_t screen)
             display.drawXbm(0, 0, image_width, image_height, image_bits);
             display.setFont(ArialMT_Plain_24);
             display.setTextAlignment(TEXT_ALIGN_RIGHT);
-            display.drawString(128,42, s);
+            display.drawStringf(128,42,s,"V%d.%d",FIRMWARE_VERSION_MAJOR,FIRMWARE_VERSION_MINOR);
             break;
         case SCREEN_SONDEDATA:
             display.clear();
             display.setColor(WHITE);
             display.setFont(ArialMT_Plain_16);
             display.setTextAlignment(TEXT_ALIGN_CENTER);
-            sprintf(s,"%6.3f",freqMhz);
-            display.drawString(63,0,s);
+            display.drawStringf(63,0,s,"%6.3f",freqMhz);
             display.setTextAlignment(TEXT_ALIGN_LEFT);
-            sprintf(s,"%7.5f",lat);
-            display.drawString(0,32,s);
-            sprintf(s,"%7.5f",lon);
-            display.drawString(0,48,s);
-            if(strlen(type)==0)
-            sprintf(s,"%s",id);
-            else      
-            sprintf(s,"%s %s",type,id);
-            display.drawString(0,16,s);
+            display.drawStringf(0,32,s,"%7.5f",lat);
+            display.drawStringf(0,48,s,"%7.5f",lon);
+            display.drawStringf(0,16,s,"%s",id);
             display.setTextAlignment(TEXT_ALIGN_RIGHT);
-            sprintf(s,"%.0f  ",alt);
-            display.drawString(127,32,s);
+            display.drawStringf(127,32,s,"%.0f  ",alt);
             display.setFont(ArialMT_Plain_10);
             display.drawString(127,37,"m");
             OLED_drawBat();
             OLED_drawRSSI();
             if(BTisConnected )
-            {
                 display.drawIco16x16(0,0, &BTon[0]);
-            }
             break;
         case SCREEN_DEBUG: 
             char dbgMsg[20];
@@ -351,11 +319,15 @@ void LilyGo::OLED_updateScreen(uint8_t screen)
             display.setFont(ArialMT_Plain_16);
             display.setTextAlignment(TEXT_ALIGN_LEFT);
             //display.drawString(0, 0,dbgMsg);
-            display.drawStringf(0,16,dbgMsg,"C:%d/%d",debug_CrcCntr,debug_BlockCntr);
-            display.drawStringf(0,32,dbgMsg,"#%d",debug_frameNr);
+            if(debug_RS41BlockCntr > 0)
+            {
+                display.drawStringf(0,16,dbgMsg,"C:%d/%d",debug_RS41CrcCntr,debug_RS41BlockCntr);
+                display.drawStringf(0,32,dbgMsg,"#%d",debug_RS41frameNr);
+            }
             display.drawStringf(0,48,dbgMsg,"R:%s",rereMsg[esp_reset_reason()]);
             display.setTextAlignment(TEXT_ALIGN_RIGHT);
-            display.drawStringf(127,16,dbgMsg,"%ds",debug_age);
+            if(debug_RS41BlockCntr > 0)
+                display.drawStringf(127,16,dbgMsg,"%ds",debug_age);
             display.drawStringf(127,32,dbgMsg,"%.1fdB",rssi);
             break;
         default:
@@ -372,18 +344,11 @@ void LilyGo::toggleDebugScreen()
 
 void LilyGo::setDebugCrc(int eCrcCntr, int blockCntr)
 {
-    debug_CrcCntr   = eCrcCntr;
-    debug_BlockCntr = blockCntr;
+    debug_RS41CrcCntr   = eCrcCntr;
+    debug_RS41BlockCntr = blockCntr;
     latestDebugMsg  = millis();
     OLED_updateScreen();
 }   
-
-
-void LilyGo::OLED_updateFrequency(float freqHz)
-{
-    freqMhz = freqHz/1e6;
-    OLED_updateScreen();
-}
 
 void LilyGo::OLED_updateVoltage(float vBatt_in)
 {

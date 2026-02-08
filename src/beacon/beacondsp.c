@@ -193,7 +193,7 @@ void BEACON_DSP_processAudio (const int32_t *rawAudio, float *cookedAudio, int n
 
                 if (handle->rxActive) {
                     /* Sample RSSI value */
-//HP                    LPC_MAILBOX->IRQ1SET = (1u << 1);
+                    LPC_MAILBOX->IRQ1SET = (1u << 1);
                 }
             }
         }

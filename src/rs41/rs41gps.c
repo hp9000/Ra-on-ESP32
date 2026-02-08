@@ -8,8 +8,8 @@
 #include "lpclib.h"
 #include "rs41.h"
 #include "rs41private.h"
-//HP #include "observer.h"
-//HP #include "rinex.h"
+#include "observer.h"
+#include "rinex.h"
 
 
 LPCLIB_Result _RS41_processGpsPositionBlock (
@@ -93,7 +93,6 @@ LPCLIB_Result _RS41_processGnssPositionBlock (
         cookedGps->gpstime = unixTime - 315964800;
     }
 
-#if 0
     /* Invalidate position if this is not a valid position solution */
     if (cookedGps->usedSats == 0) {
         cookedGps->observerLLA.lat = NAN;
@@ -101,7 +100,6 @@ LPCLIB_Result _RS41_processGnssPositionBlock (
         cookedGps->observerLLA.alt = NAN;
         cookedGps->estimatedPressure = NAN;
     }
-#endif
 
     return LPCLIB_SUCCESS;
 }

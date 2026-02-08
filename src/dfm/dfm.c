@@ -264,7 +264,7 @@ static void _DFM_sendKiss (DFM_InstanceData *instance)
 
     if (length > 0) {
         ttgo_setDisplayData(latitude,longitude,instance->gps.observerLLA.alt,
-                    instance->rxFrequencyMHz,instance->name,name,instance->rssi,0);
+                    instance->rxFrequencyMHz,instance->name,instance->rssi,0);
         SYS_send2Host(HOST_CHANNEL_INFO, s);
     }
 }

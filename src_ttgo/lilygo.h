@@ -37,12 +37,11 @@ public:
     void SX1278_setRadioFrequency(float freqInHz);
     void SX1278_readRSSI(float* newLevel);
     void EEPROM_setup();
-    void EEPROM_readCfg();
     void EEPROM_writeCfg(uint32_t frequency);
     void EEPROM_writeCfg(uint8_t detector);
     uint32_t EEPROM_getFrequency() {return frequencyInEeprom;};
     uint8_t  EEPROM_getDetector()  {return detectorInEeprom;};
-    void setDisplayData(double, double, double, float ,char* ,const char*, float, uint32_t);
+    void setDisplayData(double, double, double, float ,char* , float, uint32_t);
     void setDisplayFreq(float);
     void toggleDebugScreen();
     void setDebugCrc(int eCrcCntr, int blockCntr);
@@ -53,21 +52,20 @@ private:
     void OLED_drawRSSI();
     void OLED_show(bool);
     void OLED_updateGraphics(uint8_t displayCmd);
-    void OLED_updateFrequency(float freqInHz);
     void OLED_updateVoltage(float vBatt);
     void OLED_updateScreen(uint8_t screen = SCREEN_CURRENT);
     void handleConsole(const char *cmd);
 
     BLECharacteristic *pRxCharacteristic;
     int guiCmdIdx = 0, initScreenCntDwn = 0, displayAgeCntdwn = 0, 
-        debug_age = 0, debug_frameNr = 0, debug_CrcCntr = 0, debug_BlockCntr = 0;
+        debug_age = 0, debug_RS41frameNr = 0, debug_RS41CrcCntr = 0, debug_RS41BlockCntr = 0;
     bool BTisConnected;
     uint8_t activeScreen = SCREEN_STARTUP, detectorInEeprom;
     uint32_t latestDebugMsg,frequencyInEeprom,SerialNoEsp,versionBT = 0x05000000;
     double lat,lon,alt;
     float vBatt,freqMhz,rssi;
-    char id[20],type[10],guiCmd[20];
-    // Reboot reason messages; displayed as numbers in 'Bootloader' field on App screen in case of reset 
+    char id[20],guiCmd[20];
+    // Reboot reason messages; displayed as numbers in 'Bootloader' field on App screen after a reset 
     const char *rereMsg[16] = { "UNKNOWN", "POWERON", "EXTERNAL PIN", "SW RESTART", "PANIC", "INTERRUPT WTD",
                                 "TASK WTD", "OTHER WTD", "EXITDEEPSLEEP", "BROWNOUT", "SDIO", "by USB",
                                 "by JTAG", "EFUSE ERROR", "POWER GLITCH", "CPU_LOCKUP" };
