@@ -22,9 +22,7 @@ const size_t xStreamBufferSizeBytes = 1024;
 const size_t xTriggerLevel = 1; 
 
 int i_cntr = 0,*hc=0;
-int flag=0;
 IRAM_ATTR void onDIO1Edge() {
-    flag=1;
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     uint8_t bit = (GPIO.in1.val /*>> (PIN_DIO2 - 32)*/) & 0x01;
 //    xTaskNotifyFromISR(xTaskSyncDet, bit, eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
@@ -70,7 +68,6 @@ void loop()
 {
   vTaskDelay(100/portTICK_PERIOD_MS);
   ttgo_100msTask();
-  Serial.printf("flag=%d\n", flag);
 }
 
 

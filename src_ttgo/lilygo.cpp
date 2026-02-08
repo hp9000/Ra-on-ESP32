@@ -214,7 +214,6 @@ void LilyGo::SX1278_setup() {
     sx1278WriteRegister0(0x30, 0x00);       // 
     sx1278WriteRegister0(0x31, 0x00);       // Continuous Mode aktivieren (PacketMode Bit 6 = 0)
     sx1278WriteRegister0(0x40, 0x00);       // DIO2 Mapping auf "Data" setzen
-ESP_LOGE("HP","SX1278 setup complete.");
 }
 
 void LilyGo::SX1278_ioctl(const SX1278_Config config[]) {
@@ -330,6 +329,16 @@ void LilyGo::OLED_updateScreen(uint8_t screen)
                 display.drawStringf(127,16,dbgMsg,"%ds",debug_age);
             display.drawStringf(127,32,dbgMsg,"%.1fdB",rssi);
             break;
+        case SCREEN_SHUTDOWN:
+            display.clear();
+            display.setColor(WHITE);
+            display.setFont(ArialMT_Plain_24);
+            display.setTextAlignment(TEXT_ALIGN_CENTER);
+            display.drawString(63,24,"Sleeping...");
+            display.display();
+            vTaskDelay(3000/portTICK_PERIOD_MS);
+            display.displayOff();
+            break;
         default:
             break;  
     }
@@ -340,6 +349,11 @@ void LilyGo::OLED_updateScreen(uint8_t screen)
 void LilyGo::toggleDebugScreen()
 {
     OLED_updateScreen((activeScreen == SCREEN_DEBUG) ? SCREEN_SONDEDATA : SCREEN_DEBUG);
+}
+
+void LilyGo::switchOffScreen()
+{
+    OLED_updateScreen(SCREEN_SHUTDOWN);
 }
 
 void LilyGo::setDebugCrc(int eCrcCntr, int blockCntr)

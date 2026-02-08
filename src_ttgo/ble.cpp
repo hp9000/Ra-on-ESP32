@@ -29,7 +29,7 @@ void BLE_setMsgQueue(QueueHandle_t q) {
 
 void BLE_setup(bool isSpecialDevice)
 {
-  BLEDevice::init("RaOnTTGOgb");
+  BLEDevice::init("RaOnTTGO");
   
   BLEServer *pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());

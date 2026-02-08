@@ -24,6 +24,7 @@ uint8_t ttgo_getDetector();
 void ttgo_setDisplayData(double, double, double, float ,char* , float, uint32_t);
 void ttgo_setDisplayFreq(float);
 void ttgo_toggleDebugScreen();
+void ttgo_switchOffScreen();
 void ttgo_debug(int,int);
 
 void SX1278_ioctl(const SX1278_Config config[]);

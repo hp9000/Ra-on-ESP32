@@ -47,6 +47,11 @@ extern "C" {
         myLilyGoBoard.toggleDebugScreen();
     };
 
+    void ttgo_switchOffScreen()
+    {
+        myLilyGoBoard.switchOffScreen();
+    };
+
     void ttgo_debug(int eCrcCntr, int blockCntr)
     {
         myLilyGoBoard.setDebugCrc(eCrcCntr, blockCntr);

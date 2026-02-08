@@ -11,7 +11,8 @@ enum {
     SCREEN_CURRENT,
     SCREEN_STARTUP,
     SCREEN_SONDEDATA,
-    SCREEN_DEBUG
+    SCREEN_DEBUG,
+    SCREEN_SHUTDOWN
 };
 
 enum {
@@ -44,6 +45,7 @@ public:
     void setDisplayData(double, double, double, float ,char* , float, uint32_t);
     void setDisplayFreq(float);
     void toggleDebugScreen();
+    void switchOffScreen();
     void setDebugCrc(int eCrcCntr, int blockCntr);
 
 private:

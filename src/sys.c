@@ -853,6 +853,7 @@ static void _SYS_setRadioFrequency (SYS_Handle handle, float frequency)
 #ifdef RX_SX1278
     MAILBOX_IRQHandler((uint32_t)1u << 30);
     handle->currentFrequency = frequency;
+    SX1278_setRadioFrequency(frequency);
     ttgo_setDisplayFreq(frequency);
     MAILBOX_IRQHandler((uint32_t)1u << 31);
 #else
@@ -891,7 +892,7 @@ LPCLIB_Result SYS_enableDetector (SYS_Handle handle, float frequency, SONDE_Dete
 #endif
 
     if ((detector != handle->sondeDetector) || (frequency != handle->currentFrequency) || handle->monitorUpdate) {
-ESP_LOGE("HP","F=%f (%f), D=%d (%d) mU=%d", frequency,handle->currentFrequency, detector, handle->sondeDetector, handle->monitorUpdate);
+//ESP_LOGE("HP","F=%f (%f), D=%d (%d) mU=%d", frequency,handle->currentFrequency, detector, handle->sondeDetector, handle->monitorUpdate);
 //         PDM_stop(handle->pdm);
 
         handle->sondeDetector = detector;
@@ -1040,7 +1041,6 @@ ESP_LOGE("HP","F=%f (%f), D=%d (%d) mU=%d", frequency,handle->currentFrequency, 
 #endif
                 _SYS_setRadioFrequency(handle, frequency);
                 _SYS_reportRadioFrequency(handle);  /* Inform host */
-ESP_LOGE("HP","SONDE_DETECTOR_RS41_RS92 called, F=%f", frequency);
 
 //                LPC_MAILBOX->IRQ0SET = (1u << 0); //TODO
                 MAILBOX_IRQHandler((uint32_t)1u << 0);
@@ -1184,13 +1184,12 @@ LPCLIB_Result SYS_send2Host (int channel, const char *message)
     return LPCLIB_SUCCESS;
 }
 
-#ifndef ARDUINO_ARCH_ESP32
 
 //TODO: duration=0: off, duration=-1: on, duration>0: on for specified #milliseconds
 LPCLIB_Result SYS_sendBreak (int durationMilliseconds)
 {
-    sysContext.blePortBreakTime = durationMilliseconds;
-    sysContext.blePortSetBreak = true;
+    // sysContext.blePortBreakTime = durationMilliseconds;
+    // sysContext.blePortSetBreak = true;
 
     return LPCLIB_SUCCESS;
 }
@@ -1200,6 +1199,10 @@ LPCLIB_Result SYS_sendBreak (int durationMilliseconds)
 /** Enter low-power mode */
 static void SYS_sleep (SYS_Handle handle)
 {
+    ESP_LOGE("HP","SYS_sleep");
+    ttgo_switchOffScreen();
+    esp_deep_sleep_start();
+#ifndef RX_SX1278            
     // uint32_t OldSystemCoreClock;
 
 
@@ -1293,8 +1296,8 @@ static void SYS_sleep (SYS_Handle handle)
     /* Install handler for link-down signal from Bluetooth module */
     GPIO_ioctl(bleLinkDownHandlerEnable);
 #endif
-}
 #endif
+}
 
 
 /* Read a new RSSI value in dBm. */
@@ -1646,7 +1649,6 @@ static void _SYS_osalCallback (TimerHandle_t xTimer)
             break;
 
         case SYS_TIMERMAGIC_INACTIVITY:
-        ESP_LOGE("HP","_SYS_osalCallback: SYS_TIMERMAGIC_INACTIVITY");
 #ifndef ARDUINO_ARCH_ESP32
             pMessage = osMailAlloc(sysContext.queue, 0);
             if (pMessage == NULL) {
@@ -1657,9 +1659,10 @@ static void _SYS_osalCallback (TimerHandle_t xTimer)
             pMessage->event.opcode = APP_EVENT_SUSPEND;
             osMailPut(sysContext.queue, pMessage);
 #else
-            // aMessage.opcode = SYS_OPCODE_EVENT;
-            // xQueueSendFromISR(sysContext.queue, &aMessage, &xHigherPriorityTaskWoken);
-            // if( xHigherPriorityTaskWoken == pdTRUE ){portYIELD_FROM_ISR();}
+            aMessage.opcode = SYS_OPCODE_EVENT;
+            aMessage.event.opcode = APP_EVENT_SUSPEND;
+            xQueueSendFromISR(sysContext.queue, &aMessage, &xHigherPriorityTaskWoken);
+            if( xHigherPriorityTaskWoken == pdTRUE ){portYIELD_FROM_ISR();}
 #endif
             break;
     }
@@ -2250,9 +2253,9 @@ static const UART_Config blePortConfigBreakDisable[] = {
 //PT_THREAD(SYS_thread (SYS_Handle handle))
 void SYS_thread (void *param)
 {
-    if(ESP_OK != esp_task_wdt_add(NULL)) {
-        ESP_LOGE("SYS", "Failed to add task to watchdog");
-    }   
+    // if(ESP_OK != esp_task_wdt_add(NULL)) {
+    //     ESP_LOGE("SYS", "Failed to add task to watchdog");
+    // }   
     SYS_Handle handle = (SYS_Handle)param;
     
     //static SYS_Message *pMessage;
@@ -2299,8 +2302,8 @@ void SYS_thread (void *param)
      * host for some time is treated as a disconnect event.
      */
 //    handle->inactivityTimeout = osTimerCreate(osTimer(inactivityTimer), osTimerOnce, (void *)SYS_TIMERMAGIC_INACTIVITY);
-    // handle->inactivityTimeout = xTimerCreate( "ACTIVITY-Timer",pdMS_TO_TICKS(INACTIVITY_TIMEOUT-5000), pdFALSE, (void *)SYS_TIMERMAGIC_INACTIVITY, _SYS_osalCallback);
-    // xTimerStart( handle->inactivityTimeout, 0);
+    handle->inactivityTimeout = xTimerCreate( "ACTIVITY-Timer",pdMS_TO_TICKS(INACTIVITY_TIMEOUT-5000), pdFALSE, (void *)SYS_TIMERMAGIC_INACTIVITY, _SYS_osalCallback);
+    xTimerStart( handle->inactivityTimeout, 0);
 
 #ifndef ARDUINO_ARCH_ESP32
 #if (BOARD_RA == 1)
@@ -2362,8 +2365,7 @@ void SYS_thread (void *param)
                 if (bleCommandLine[i][0] != 0) {
                     strcpy(handle->commandLine, bleCommandLine[i]);
                     bleCommandLine[i][0] = 0; // clear after reading
-                        //xTimerReset( handle->inactivityTimeout, 0);
-                        //xTimerStart( handle->inactivityTimeout, 0);
+                    xTimerReset( handle->inactivityTimeout, 0);
                     _SYS_handleBleCommand(handle);
                 }
                 break;                
@@ -2372,12 +2374,12 @@ void SYS_thread (void *param)
             case SYS_OPCODE_EVENT:
             switch(pMessage->event.opcode) {
 
-#ifndef ARDUINO_ARCH_ESP32
                 case APP_EVENT_SUSPEND:
                     vTaskDelay(5000/portTICK_PERIOD_MS);  
                     SYS_sleep(handle);
                     break;
 
+#ifndef ARDUINO_ARCH_ESP32
                 case APP_EVENT_RAW_FRAME:
                     /* Check which type of sonde this is for */
                     if ((SONDE_Type)pMessage->event.block == SONDE_C34) {
@@ -2423,7 +2425,7 @@ void SYS_thread (void *param)
             case SYS_OPCODE_BUFFER_COMPLETE:
                 {
                     t1 = millis();
-ESP_LOGE("HP", "Buffer complete, processing... t1 = %lu", t1);
+//ESP_LOGE("HP", "Buffer complete, processing... t1 = %lu", t1);
                     /* Find out which buffer to use */
                     int bufferIndex = pMessage->bufferIndex;
 
