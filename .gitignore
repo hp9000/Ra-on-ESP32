@@ -1,15 +1,8 @@
 # PlatformIO Build-Verzeichnis (enthält temporäre Daten & installierte Libs)
 .pio/
-.pioenvs/
+.vscode/
 .piolibdeps/
 
-# VS Code spezifische PlatformIO-Daten
-.vscode/.browse.vc.db
-.vscode/.gcc-flags.json
-.vscode/.c_cpp_properties.json
-.vscode/.clang_complete
-.vscode/.project
-.vscode/.languageguide.json
 
 # Betriebssystem-spezifische Dateien
 Thumbs.db
