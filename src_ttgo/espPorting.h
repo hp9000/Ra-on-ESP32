@@ -19,7 +19,7 @@
 #ifdef FIRMWARE_VERSION_MINOR   
 #undef FIRMWARE_VERSION_MINOR
 #endif
-#define FIRMWARE_VERSION_MINOR       46
+#define FIRMWARE_VERSION_MINOR       5
 
 
 typedef struct {
