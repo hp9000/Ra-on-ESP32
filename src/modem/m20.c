@@ -15,6 +15,7 @@
 #include "gps.h"
 
 #include "espPorting.h"
+#include "bridge.h"
 
 /*
  * M10/M20 frame parameters
@@ -264,6 +265,9 @@ static void _M20_sendKiss (M20_InstanceData *instance)
                 );
 
     if (length > 0) {
+        ttgo_setDisplayData(latitude,longitude,instance->gps.observerLLA.alt,
+            instance->rxFrequencyMHz,instance->hashName,instance->rssi,instance->frameCounter);
+
         SYS_send2Host(HOST_CHANNEL_INFO, s);
     }
 }

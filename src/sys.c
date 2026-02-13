@@ -51,7 +51,7 @@
 // #include "jinyang.h"
 // #include "lms6.h"
 #include "m10.h"
-// #include "m20.h"
+#include "m20.h"
 // #include "meisei.h"
 // #include "mon.h"
 // #include "mrz.h"
@@ -155,7 +155,7 @@ struct SYS_Context {
     // JINYANG_Handle jinyang;
     // LMS6_Handle lms6;
     M10_Handle m10;
-    // M20_Handle m20;
+    M20_Handle m20;
     // MRZ_Handle mrz;
     // PILOT_Handle pilot;
     // PSB3_Handle psb3;
@@ -2296,7 +2296,7 @@ void SYS_thread (void *param)
 //     IMET54_open(&handle->imet54);
 //     JINYANG_open(&handle->jinyang);
     M10_open(&handle->m10);
-//     M20_open(&handle->m20);
+    M20_open(&handle->m20);
 //     MEISEI_open(&handle->meisei);
 //     WINDSOND_open(&handle->windsond);
 //     MRZ_open(&handle->mrz);
@@ -2484,7 +2484,6 @@ void SYS_thread (void *param)
                                 /* Let scanner prepare for next frequency */
                                 SCANNER_notifyValidFrame(scanner);
                             }
-#ifndef ARDUINO_ARCH_ESP32
                             else if (sondeType == SONDE_M20) {
                                 M20_processBlock(
                                         handle->m20,
@@ -2497,6 +2496,7 @@ void SYS_thread (void *param)
                                 /* Let scanner prepare for next frequency */
                                 SCANNER_notifyValidFrame(scanner);
                             }
+#ifndef ARDUINO_ARCH_ESP32
                             else if (sondeType == SONDE_PILOT) {
                                 PILOT_processBlock(
                                         handle->pilot,
