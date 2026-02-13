@@ -23,6 +23,8 @@ esptool --chip esp32s3 --port <port> --baud 921600  --before default_reset --aft
 Running on battery the Heltec board is sometimes resetting. You can avoid this by using a 'big' battery (or a Powerbank on USB). I could not find the problem in SW, so I think, it is a HW problem. 
 For this board there will be no more versions for more sondes. 
 
+[esptool](docs) 
+
 ## Status
 <table>
     <tr>
