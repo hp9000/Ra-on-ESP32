@@ -38,6 +38,9 @@ For installation use https://www.espboards.dev/tools/program/ or [esptool](docs)
     <td>Pilot</td> <td>❌</td> <td>❌</td> <td>❌</td> 
   </tr>
 </table>
+
+## Acknowledgments
+A big Thanks for the support of this project goes to Demy, Dennis, DF9DQ and DL5RCB
     
 ## License
 
