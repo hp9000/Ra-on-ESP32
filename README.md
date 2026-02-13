@@ -23,10 +23,39 @@ esptool --chip esp32s3 --port <port> --baud 921600  --before default_reset --aft
 Running on battery the Heltec board is sometimes resetting. You can avoid this by using a 'big' battery (or a Powerbank on USB). I could not find the problem in SW, so I think, it is a HW problem. 
 For this board there will be no more versions for more sondes. 
 
-## Known Bugs
-
-v0.5: 
-  - TTGO board goes to sleep mode, if app is in scanner screen for more than 30 sec
+## Status
+<table>
+    <tr>
+    <td></td>  <td></td> <td>coded</td> <td>air test</td>  <td>desk test</td> 
+  </tr>
+  <tr>
+    <td rowspan="2">Vaisala</td>
+    <td>RS41</td> <td>✔️</td> <td>✔️</td> <td>✔️</td> 
+  </tr>
+  <tr>
+    <td>RS92</td> <td>❌</td> <td>❌</td> <td>❌</td> 
+  </tr>
+    <tr>
+    <td rowspan="3">GRAW</td>
+    <td>DFM17</td> <td>✔️</td> <td>✔️</td> <td>✔️</td>
+  </tr>
+  <tr>
+    <td>DFM09</td> <td>✔️</td> <td>❌</td> <td>✔️</td> 
+  </tr>
+  <tr>
+    <td>PS15</td> <td>✔️</td> <td>❌</td> <td>✔️</td> 
+  </tr>
+  <tr>
+    <td rowspan="3">MODEM</td>
+    <td>M10</td> <td>✔️</td> <td>❌</td> <td>✔️</td> 
+  </tr>
+  <tr>
+    <td>M20</td> <td>✔️</td> <td>❌</td> <td>❌</td> 
+  </tr>
+    <tr>
+    <td>Pilot</td> <td>❌</td> <td>❌</td> <td>❌</td> 
+  </tr>
+</table>
     
 ## License
 
