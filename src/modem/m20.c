@@ -14,6 +14,7 @@
 #include "reedsolomon.h"
 #include "gps.h"
 
+#include "espPorting.h"
 
 /*
  * M10/M20 frame parameters

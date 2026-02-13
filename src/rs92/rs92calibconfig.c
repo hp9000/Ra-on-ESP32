@@ -3,6 +3,7 @@
 #include "app.h"
 #include "rs92.h"
 #include "rs92private.h"
+#include "espPorting.h"
 
 
 #define RS92_MAX_SONDES         8

@@ -13,6 +13,8 @@
 #include "rs92private.h"
 #include "reedsolomon.h"
 
+#include "bridge.h"
+
 
 /** Context */
 typedef struct RS92_Context {
@@ -32,6 +34,12 @@ static RS92_Context _rs92;
 /* Check CRC of sub-blocks */
 static void _RS92_checkCRC (RS92_Handle handle)
 {
+    #ifdef ARDUINO_ARCH_ESP32
+        handle->crcOK[0] = getCRC(&handle->packet.rawData[2], 32) == ((handle->packet.rawData[35] << 8) | handle->packet.rawData[34]);
+        handle->crcOK[1] = getCRC(&handle->packet.rawData[38], 24) == ((handle->packet.rawData[63] << 8) | handle->packet.rawData[62]);
+        handle->crcOK[2] = getCRC(&handle->packet.rawData[66], 122) == ((handle->packet.rawData[189] << 8) | handle->packet.rawData[188]);
+        handle->crcOK[3] = getCRC(&handle->packet.rawData[192], 10) == ((handle->packet.rawData[203] << 8) | handle->packet.rawData[202]);
+    #else
     CRC_Handle crc = LPCLIB_INVALID_HANDLE;
     CRC_Mode crcMode;
     uint16_t receivedCRC;
@@ -70,6 +78,7 @@ static void _RS92_checkCRC (RS92_Handle handle)
 
         CRC_close(&crc);
     }
+#endif
 }
 
 

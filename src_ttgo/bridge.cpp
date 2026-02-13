@@ -47,9 +47,8 @@ extern "C" {
         myLilyGoBoard.toggleDebugScreen();
     };
 
-    void ttgo_switchOffScreen()
-    {
-        myLilyGoBoard.switchOffScreen();
+    void ttgo_toggleScannerScreen(int enable) {
+        myLilyGoBoard.toggleScannerScreen(enable);
     };
 
     void ttgo_debug(int eCrcCntr, int blockCntr)
@@ -98,9 +97,9 @@ extern "C" {
         myLilyGoBoard.SX1278_setBitRate(bitrate);
     };
 
-    void SX1278_setRadioFrequency(float frequency)
+    float SX1278_setRadioFrequencyHz(uint32_t freqHz, bool readRssi)
     {
-        myLilyGoBoard.SX1278_setRadioFrequency(frequency);
+        return myLilyGoBoard.SX1278_setRadioFrequencyHz(freqHz, readRssi);
     };
 
     void SX1278_readRSSI(float* newLevel)
@@ -116,11 +115,6 @@ extern "C" {
     void ttgo_writeDetector2Eeprom(uint8_t detector)
     {
         myLilyGoBoard.EEPROM_writeCfg(detector);
-    };
-
-    void ttgo_setSysFrequency(uint32_t FreqHz)
-    {
-
     };
 
     uint32_t ttgo_getFrequency()

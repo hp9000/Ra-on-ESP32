@@ -19,17 +19,17 @@ void ttgo_sendBtMessage( char* msg);
 void ttgo_writeFrequency2Eeprom(uint32_t frequency);
 void ttgo_writeDetector2Eeprom(uint8_t detector);
 uint32_t ttgo_getFrequency();
-void ttgo_setSysFrequency(uint32_t FreqHz);
+//float ttgo_setSysFrequency(uint32_t FreqHz, bool readRssi);
 uint8_t ttgo_getDetector();
 void ttgo_setDisplayData(double, double, double, float ,char* , float, uint32_t);
 void ttgo_setDisplayFreq(float);
 void ttgo_toggleDebugScreen();
-void ttgo_switchOffScreen();
+void ttgo_toggleScannerScreen(int enable);
 void ttgo_debug(int,int);
 
 void SX1278_ioctl(const SX1278_Config config[]);
 void SX1278_setBitRate(uint16_t bitrate);
-void SX1278_setRadioFrequency(float frequency);
+float SX1278_setRadioFrequencyHz(uint32_t freqHz, bool readRssi);
 void SX1278_readRSSI(float* newLevel);
 
 uint16_t getCRC(const uint8_t* buffer, size_t length);

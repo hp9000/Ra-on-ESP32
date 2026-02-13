@@ -4,6 +4,7 @@
 #include "m10.h"
 #include "m10private.h"
 
+#include "espPorting.h"
 
 #define M10_MAX_SONDES         2
 

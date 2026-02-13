@@ -14,6 +14,8 @@
 #include "reedsolomon.h"
 #include "gps.h"
 
+#include "espPorting.h"
+#include "bridge.h"
 
 /** Context */
 typedef struct M10_Context {
@@ -135,6 +137,8 @@ static void _M10_sendKiss (M10_InstanceData *instance)
                 );
 
     if (length > 0) {
+        ttgo_setDisplayData(latitude,longitude,instance->gps.observerLLA.alt,
+            instance->rxFrequencyMHz,instance->hashName,instance->rssi,instance->frameCounter);
         SYS_send2Host(HOST_CHANNEL_INFO, s);
     }
 }
@@ -186,7 +190,7 @@ LPCLIB_Result M10_processBlock (
                     handle->instance->realTime = realTime;
                     handle->instance->rxFrequencyMHz = handle->rxFrequencyHz / 1e6f;
 
-if(1){//                    if (handle->instance->logMode == M10_LOGMODE_RAW) {
+if(0){ //if(1){//                    if (handle->instance->logMode == M10_LOGMODE_RAW) {
                         _M10_sendRaw(handle->instance, (uint8_t *)&handle->packet, handle->packetLength);
                     }
 

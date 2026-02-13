@@ -12,6 +12,8 @@
 
 //#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
 #include <esp_log.h>
+#include <driver/adc.h>
+#include "esp_adc_cal.h"
 
 #define PIN_MISO 19
 #define PIN_MOSI 27
@@ -26,12 +28,18 @@
 
 SSD1306Wire  display(0x3c, SDA_OLED, SCL_OLED, GEOMETRY_128_64,I2C_TWO, 500000); 
 static const char* TAG = "HP";
+int taskCalled_Cntr = 0;
 
 void handleConsole(const char *cmd);
+
+static void screenSaverCallback(TimerHandle_t xTimer)    {
+    display.displayOff();
+}
 
 LilyGo::LilyGo() {
     // Constructor implementation
     pinMode(LED_BUILTIN, OUTPUT);
+    pinMode(14, OUTPUT);
     rssi = -128;
 }
 
@@ -46,7 +54,9 @@ void LilyGo::setup() {
     SX1278_setup();
     OLED_setup();
     analogReadResolution(12);
-    getBatVoltage();
+    adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_0db);
+    adc1_config_width(ADC_WIDTH_12Bit);
+    vBattOnStart = getBatVoltage();
     if(ESP_OK != esp_task_wdt_init(5,true)) {
         ESP_LOGE(TAG, "Failed to initialize task watchdog");
     }
@@ -79,16 +89,18 @@ void LilyGo::setBtState(bool state) {
     }
     
     display.display();
+    display.displayOn();
     display.setColor(WHITE);
+    xTimerReset( screenSaverTimer, 0);
 }
 
 void LilyGo::OLED_setup(){
-    OLED_updateScreen(SCREEN_STARTUP); 
-    initScreenCntDwn = 30;
+    OLED_drawScreen(SCREEN_STARTUP); 
  }
 
 
  void LilyGo::OLED_show(bool state){
+    screenIsOff = !state;
     state ? display.displayOn() : display.displayOff();
  }
 
@@ -100,8 +112,21 @@ uint32_t LilyGo::getSerialNo() {
 
 float LilyGo::getBatVoltage()
 {
-    vBatt = (analogRead(PIN_BAT) / 4095.0 * 2 * 3.3 * 1.06); // voltage divider 100k/100k, ADC ref 3.3V, approx. calibration factor 1.06);
+    float vBattOld = vBatt;
+    digitalWrite(14, HIGH);
+    delay(1);
+    vBatt = (analogRead(PIN_BAT) / 4095.0 * 2 * 3.3 * voltageCalibrationFactor); 
+                       // voltage divider 100k/100k, ADC ref 3.3V, calibration;
+    digitalWrite(14, LOW);
+    if(vBatt > 4.17)   // Simple threshold to detect charging state, adjust as needed
+        isCharging = true;  
+    else if(vBatt > vBattOld + 0.01)
+        isCharging = true;
+    else if(vBatt < vBattOld)
+        isCharging = false;
+ 
     OLED_updateVoltage(vBatt);
+
     return vBatt;
 }
 
@@ -168,25 +193,32 @@ void LilyGo::SX1278_setBitRate(uint16_t bitrate) {
     sx1278WriteRegister0(0x03, value);  // RegBitrateLsb
 }
 
-void LilyGo::SX1278_setRadioFrequency(float freqInHz) {
-  uint8_t spiBuff[32];
-  int32_t freq = (uint32_t)(freqInHz/SX127x_FREQUENCY_STEP_SIZE);
+float LilyGo::SX1278_setRadioFrequencyHz(uint32_t freqInHz, bool needRssi) {
+    float rssi = 0.0f;
+    uint8_t spiBuff[32];
+    int32_t freq = (uint32_t)(freqInHz/SX127x_FREQUENCY_STEP_SIZE);
 
-  sx1278WriteRegister0(0x01, 0x01); // Standby mode, FSK
-  delay(2);
+    sx1278WriteRegister0(0x01, 0x01); // Standby mode, FSK
+    delay(2);
+    spiBuff[0] =  0x80 | 0x06;  //Opcode for set RF Frequencty
+    spiBuff[3] = freq & 0xFF; freq >>= 8;
+    spiBuff[2] = freq & 0xFF; freq >>= 8;
+    spiBuff[1] = freq & 0xFF; 
+    digitalWrite(PIN_CS, LOW);  //Enable radio chip-select
+    SPI.transfer(spiBuff, 4);
+    digitalWrite(PIN_CS, HIGH); //Disable radio chip-select  
+    sx1278WriteRegister0(0x01, 0x04);   // FSRX mode
+    delay(2);                           // TS_FS (standby->FSRX) = 60 us
+    sx1278WriteRegister0(0x01, 0x05);   // RX mode
+    delay(2);                           // TS_RE (FSRX   ->RX  ) < 1 ms
 
-  spiBuff[0] =  0x80 | 0x06;  //Opcode for set RF Frequencty
-  spiBuff[3] = freq & 0xFF; freq >>= 8;
-  spiBuff[2] = freq & 0xFF; freq >>= 8;
-  spiBuff[1] = freq & 0xFF; 
-  digitalWrite(PIN_CS, LOW);  //Enable radio chip-select
-  SPI.transfer(spiBuff, 4);
-  digitalWrite(PIN_CS, HIGH); //Disable radio chip-select  
-  
-  sx1278WriteRegister0(0x01, 0x04);   // FSRX mode
-  delay(2);                           // TS_FS (standby->FSRX) = 60 us
-  sx1278WriteRegister0(0x01, 0x05);   // RX mode
-  delay(2);                           // TS_RE (FSRX   ->RX  ) < 1 ms
+    if(needRssi) {
+        vTaskDelay(1/portTICK_PERIOD_MS); // Wait for RSSI sample
+        rssi = -sx1278ReadRegister(0x11) / 2.0f;
+        updateTopSignals(freqInHz, rssi);
+    }
+
+    return rssi;    
 }
 
 
@@ -203,11 +235,14 @@ void LilyGo::SX1278_setup() {
     digitalWrite(PIN_RST, HIGH);
     delay(100);
 
+    screenSaverTimer = xTimerCreate( "SCREENSAVER-Timer",pdMS_TO_TICKS(60000), pdFALSE, (void *)NULL, screenSaverCallback);
+    xTimerStart( screenSaverTimer, 0);
+
     // SX1278 general initialization 
     sx1278WriteRegister0(0x01, 0x01);       // FSK Standby Mode (LoRa aus, Mode = 001)
     sx1278WriteRegister0(0x0C, 0b00100011); // G1 = highest gain
     sx1278WriteRegister0(0x0D, 0b11111110); // RegRxConfig -> AFC & AGC, gain by AGC
-    sx1278WriteRegister0(0x0E, 0b00000010); // RSSI Glättung (8 samples)
+    sx1278WriteRegister0(0x0E, 0b00000100); // RSSI Glättung (32 samples)
     sx1278WriteRegister0(0x14, 0x28);       // Bit-Synchronizer einschalten (optional für stabilere Daten)
     sx1278WriteRegister0(0x1E, 0b00000001); // RegAfcFei-> AFC Autoclear an, um Frequenzdrift der Sonde zu folgen 
     sx1278WriteRegister0(0x1F, 0xAA);       // Preamble Detektor On, 2 Bytes Sequenz
@@ -224,10 +259,11 @@ void LilyGo::SX1278_ioctl(const SX1278_Config config[]) {
     }
     delay(2); // Kurze Pause zur Stabilisierung (optional)
 }       
- 
 
 void LilyGo::a100msTask()
 {
+    taskCalled_Cntr++;
+
     if (Serial.available()) {
         uint8_t key = Serial.read();
         if (key != 10) {
@@ -239,19 +275,30 @@ void LilyGo::a100msTask()
         }
     }
 
-    if(displayAgeCntdwn > 0)
-        if(!--displayAgeCntdwn){
+    if (taskCalled_Cntr % 10 == 0){   // Every second, increase age of data  
             debug_age = (millis() - latestDebugMsg)/1000;
-            OLED_updateScreen(); 
-        }
+            if(activeScreen == SCREEN_DEBUG)
+                OLED_drawScreen(SCREEN_DEBUG,false); 
+   
+            if(activeScreen == SCREEN_SCANNER)
+               OLED_drawScreen(SCREEN_SCANNER,false);
+    }
 
-    if(initScreenCntDwn > 0)
-        if(!--initScreenCntDwn)
-            OLED_updateScreen(SCREEN_SONDEDATA); 
+   
+    if(taskCalled_Cntr == 30)         // After showing startup screen for 3 seconds, switch to main screen
+            OLED_drawScreen(SCREEN_SONDEDATA); 
+
+    if (taskCalled_Cntr % 100 == 0)   // Blink LED every 10 seconds to indicate the system is alive
+        digitalWrite(LED_BUILTIN, HIGH);
+    else if(taskCalled_Cntr % 100 == 1)
+        digitalWrite(LED_BUILTIN, LOW);
+
 }
 
 void LilyGo::setDisplayData(double lat_in, double lon_in, double alt_in, float freq_in,char *id_in, float rssi_in, uint32_t frameCounter)
 {
+   xTimerStart(screenSaverTimer, 0);
+
    lat  = lat_in;
    lon  = lon_in;
    freqMhz = freq_in;
@@ -259,25 +306,35 @@ void LilyGo::setDisplayData(double lat_in, double lon_in, double alt_in, float f
    rssi = rssi_in;
    debug_RS41frameNr = frameCounter;
    strcpy(id,id_in);
-   OLED_updateScreen();
+   OLED_drawScreen(SCREEN_CURRENT,true);  
 }
 
 void LilyGo::setDisplayFreq(float freqHz)
 {
+   xTimerReset( screenSaverTimer, 0);
+
    freqMhz = freqHz/1e6;
-   OLED_updateScreen();
+   lat  = 0;
+   lon  = 0;
+   alt  = 0;
+   rssi = -128.0f;
+   debug_RS41frameNr = 0;
+   id[0] = 0;
+   OLED_drawScreen(SCREEN_CURRENT,true);
 }
 
 
-void LilyGo::OLED_updateScreen(uint8_t screen)
+void LilyGo::OLED_drawScreen(uint8_t screen, bool disableScreenSaver)
 {
     char s[40];
+    if(disableScreenSaver){
+        OLED_show(true);
+        if(screen != SCREEN_SCANNER)
+            xTimerReset( screenSaverTimer, 0);
+    }
 
     if(screen != SCREEN_CURRENT)
         activeScreen = screen;  
-
-    if(activeScreen != SCREEN_DEBUG)
-        displayAgeCntdwn = 0;
 
     switch (activeScreen) {
         case SCREEN_STARTUP:
@@ -292,6 +349,7 @@ void LilyGo::OLED_updateScreen(uint8_t screen)
             display.drawStringf(128,42,s,"V%d.%d",FIRMWARE_VERSION_MAJOR,FIRMWARE_VERSION_MINOR);
             break;
         case SCREEN_SONDEDATA:
+            xTimerReset(screenSaverTimer, 0);
             display.clear();
             display.setColor(WHITE);
             display.setFont(ArialMT_Plain_16);
@@ -309,10 +367,10 @@ void LilyGo::OLED_updateScreen(uint8_t screen)
             OLED_drawRSSI();
             if(BTisConnected )
                 display.drawIco16x16(0,0, &BTon[0]);
+
             break;
         case SCREEN_DEBUG: 
             char dbgMsg[20];
-            displayAgeCntdwn = 10;
             display.clear();
             display.setColor(WHITE);
             display.setFont(ArialMT_Plain_16);
@@ -328,6 +386,21 @@ void LilyGo::OLED_updateScreen(uint8_t screen)
             if(debug_RS41BlockCntr > 0)
                 display.drawStringf(127,16,dbgMsg,"%ds",debug_age);
             display.drawStringf(127,32,dbgMsg,"%.1fdB",rssi);
+            break;
+        case SCREEN_SCANNER: 
+            display.clear();
+            display.setColor(WHITE);
+            display.setFont(ArialMT_Plain_16);    
+            display.setTextAlignment(TEXT_ALIGN_LEFT);
+            display.drawStringf(0,0 ,s,"%6.2f",topSignals[0].freq/100.0);
+            display.drawStringf(0,16,s,"%6.2f",topSignals[1].freq/100.0);
+            display.drawStringf(0,32,s,"%6.2f",topSignals[2].freq/100.0);
+            display.drawStringf(0,48,s,"%6.2f",topSignals[3].freq/100.0);
+            display.setTextAlignment(TEXT_ALIGN_RIGHT);
+            display.drawStringf(127,0 ,s,"%.1fdB",topSignals[0].rssi);
+            display.drawStringf(127,16,s,"%.1fdB",topSignals[1].rssi);
+            display.drawStringf(127,32,s,"%.1fdB",topSignals[2].rssi);
+            display.drawStringf(127,48,s,"%.1fdB",topSignals[3].rssi);
             break;
         case SCREEN_SHUTDOWN:
             display.clear();
@@ -348,56 +421,93 @@ void LilyGo::OLED_updateScreen(uint8_t screen)
 
 void LilyGo::toggleDebugScreen()
 {
-    OLED_updateScreen((activeScreen == SCREEN_DEBUG) ? SCREEN_SONDEDATA : SCREEN_DEBUG);
+    OLED_drawScreen((activeScreen == SCREEN_DEBUG) ? SCREEN_SONDEDATA : SCREEN_DEBUG, true);
+}
+
+void LilyGo::toggleScannerScreen(int enable)
+{
+    if(enable == 2){
+        xTimerStop(screenSaverTimer, 0);
+        OLED_drawScreen(SCREEN_SCANNER, true);
+    }
+    else{
+        OLED_drawScreen(SCREEN_SONDEDATA, true);
+        resetTopList();
+    }
 }
 
 void LilyGo::switchOffScreen()
 {
-    OLED_updateScreen(SCREEN_SHUTDOWN);
+    OLED_show(false);
 }
 
 void LilyGo::setDebugCrc(int eCrcCntr, int blockCntr)
 {
+    xTimerReset( screenSaverTimer, 0);
     debug_RS41CrcCntr   = eCrcCntr;
     debug_RS41BlockCntr = blockCntr;
     latestDebugMsg  = millis();
-    OLED_updateScreen();
+    if(activeScreen == SCREEN_DEBUG)
+        OLED_drawScreen(SCREEN_DEBUG, true);
 }   
 
 void LilyGo::OLED_updateVoltage(float vBatt_in)
 {
-    vBatt = vBatt_in;
-    OLED_updateScreen();
+    if(vBatt_in != vBattLast){
+        vBatt     = vBatt_in;
+        vBattLast = vBatt_in;
+        if(activeScreen == SCREEN_SONDEDATA){
+            OLED_drawBat();
+            display.display();
+        }   
+    }
 }
 
 void LilyGo::OLED_drawBat()
 {
-      int8_t charge = (int8_t)(20 - vBatt * 5);  // 4V = 20 pixel
 //ESP_LOGE("HP","vBatt = %f", vBatt);
+    //4.14 voll ohne laden, 3.0V leer, 3.9V ca. 50% Ladung
+    //4.19 voll mit laden
+    //3.8 nach 4h
+    
+    //display.drawProgressBar(104, 2, 24, 12, 50/*(uint8_t)(vBatt*100/4.2)*/);
 
-      if(charge < 0) 
-        charge = 0;
-      display.drawRect(104, 2, 24, 12);
-      display.fillRect(106+charge, 4, 20-charge, 8);
-      display.fillRect(102, 6, 2, 4);
+    display.drawRect(104, 2, 24, 12);
+    display.fillRect(102, 6, 2, 4);
+
+    // if(isCharging)
+    // {
+    //     display.drawXbm(112, 3, 8, 10, bolt_tiny);
+    // }
+    // else
+    {  
+        int empty = (int)((4.0 - vBatt)*18.3);  
+        if(empty < 0) 
+          empty = 0;
+        display.fillRect(106+empty, 4, 20-empty, 8);
+    }
 }
 
 void LilyGo::OLED_drawRSSI()
 {
-  uint8_t n;
-  if(rssi >= -65) n = 5;
-  else if((rssi < -65) && (rssi >= -80)) n = 4;
-  else if((rssi < -80) && (rssi >= -95)) n = 3;
-  else if((rssi < -95) && (rssi >= -110)) n = 2;
-  else n = 1;  
-  //   = (rssi+155)/27;
-  for(int i = 0; i < 5; i++)
-  {
-    if(i==n)
-      display.setColor(BLACK);
-    display.fillRect(103+i*5, 53, 4, 10);
-  }
-  display.setColor(WHITE);
+//   uint8_t n;
+//   if(rssi >= -65) n = 5;
+//   else if((rssi < -65) && (rssi >= -80)) n = 4;
+//   else if((rssi < -80) && (rssi >= -95)) n = 3;
+//   else if((rssi < -95) && (rssi >= -110)) n = 2;
+//   else n = 1;  
+//   //   = (rssi+155)/27;
+//   for(int i = 0; i < 5; i++)
+//   {
+//     if(i==n)
+//       display.setColor(BLACK);
+//     display.fillRect(103+i*5, 53, 4, 10);
+//   }
+//   display.setColor(WHITE);
+    char s[20];
+    display.setTextAlignment(TEXT_ALIGN_RIGHT);
+    display.setFont(ArialMT_Plain_16);
+    display.drawStringf(127,48,s,"%.0fdB",rssi);
 }
 
 void LilyGo::handleConsole(const char *cmd)
@@ -419,7 +529,7 @@ void LilyGo::handleConsole(const char *cmd)
           Serial.println("d:  toggle Display");
           Serial.println("r:  register dump");
           Serial.println("x:  reboot");
-        //   ESP_LOGE("HP","s:  Screen");
+          Serial.println("s:  Screen");
         //   ESP_LOGE("HP","t:  Takt (240,160,80,40,20,10)");
            
            
@@ -445,16 +555,16 @@ void LilyGo::handleConsole(const char *cmd)
           esp_restart();
           break;
       } 
-      case 'l':
-      {
-            esp_log_level_t level = (esp_log_level_t)(cmd[1]-48);
-            esp_log_level_set("HP", level);
-            Serial.printf("Log level set to %d\n",level);
-            ESP_LOGD("HP","D:Log level set to %d\n",level);
-            ESP_LOGE("HP","E:Log level set to %d\n",level);
-            esp_log_write(ESP_LOG_DEBUG, "HP", "Test nativ: %d\n", level);
-            break;
-    }
+    //   case 'l':
+    //   {
+    //         esp_log_level_t level = (esp_log_level_t)(cmd[1]-48);
+    //         esp_log_level_set("HP", level);
+    //         Serial.printf("Log level set to %d\n",level);
+    //         ESP_LOGD("HP","D:Log level set to %d\n",level);
+    //         ESP_LOGE("HP","E:Log level set to %d\n",level);
+    //         esp_log_write(ESP_LOG_DEBUG, "HP", "Test nativ: %d\n", level);
+    //         break;
+    // }
 
 
     //   case 'm':
@@ -465,22 +575,15 @@ void LilyGo::handleConsole(const char *cmd)
     //       ESP_LOGE("HP","%s",msg);
     //       break;
     //   }
-    //   case 's':
-    //   {        
-    //       uint8_t snr = cmd[1]-48;
-    //       if(snr < FINALSCREEN)
-    //       {
-    //         SYS_setInactivityTimeout(false);
-    //         myLilyGoBoard.gotoNextScreen(cmd[1]-48);
-    //       }
-    //     //   uint8_t status=radio.getStatus();
-    //     //   ESP_LOGE("HP","Status=%x",status);
-    //     //   uint32_t ps   =radio.getPacketStatus();
-    //     //   ESP_LOGE("HP","PkgStatus=%x",ps);
-    //     //   uint16_t de   =radio.getDeviceErrors();
-    //     //   ESP_LOGE("HP","DeviceErrors=%x",de);
-    //       break;
-    //   }       
+      case 's':
+      {        
+          uint8_t snr = cmd[1]-48;
+          if(snr < SCREEN_MAX)
+          {
+             OLED_drawScreen(snr,true);
+          }
+          break;
+      }       
        
     //   case 't':
     //   {        
@@ -513,5 +616,54 @@ void LilyGo::handleConsole(const char *cmd)
       default:
         Serial.printf("key was %d\n",*cmd);
         break;  
+    }
+}
+
+
+void LilyGo::updateTopSignals(uint32_t newFreq, float newRssi) {
+    int existingIdx = -1;
+    newFreq /= 10000; // Convert to 10 kHz steps for easier comparison and display
+
+    // 1. Check if the frequency is already present in the top 4
+    for (int i = 0; i < 4; i++) {
+        if (topSignals[i].freq == newFreq) {
+            existingIdx = i;
+            break;
+        }
+    }
+
+    if (existingIdx != -1) {
+        // Frequency exists: Update RSSI only if the new signal is stronger
+        if (newRssi > topSignals[existingIdx].rssi) {
+            topSignals[existingIdx].rssi = newRssi;
+        } else {
+            return; // Existing entry is already stronger
+        }
+    } else {
+        // New frequency: Only process if it's stronger than the current 4th place
+        if (newRssi <= topSignals[3].rssi) return;
+        
+        // Replace the weakest signal (rank 4)
+        topSignals[3].freq = newFreq;
+        topSignals[3].rssi = newRssi;
+    }
+
+    // 2. Mini insertion sort to move the updated/new signal to its correct rank
+    // Since only one element is out of order, max 3 swaps are needed
+    for (int i = 3; i > 0; i--) {
+        if (topSignals[i].rssi > topSignals[i-1].rssi) {
+            Signal temp     = topSignals[i];
+            topSignals[i]   = topSignals[i-1];
+            topSignals[i-1] = temp;
+        } else {
+            break; // Correct position reached
+        }
+    }
+}
+
+void LilyGo::resetTopList() {
+    for (int i = 0; i < 4; i++) {
+        topSignals[i].freq = 0;
+        topSignals[i].rssi = -128;
     }
 }

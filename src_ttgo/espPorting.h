@@ -2,6 +2,7 @@
 #define __ESPPORTING_H
 
 #include "Arduino.h"
+#include "byteswap.h"
 
 #define os_time xTaskGetTickCount()/10
 #define osMailQId QueueHandle_t
@@ -19,8 +20,10 @@
 #ifdef FIRMWARE_VERSION_MINOR   
 #undef FIRMWARE_VERSION_MINOR
 #endif
-#define FIRMWARE_VERSION_MINOR       5
+#define FIRMWARE_VERSION_MINOR       51
 
+#define __REV(x)   __builtin_bswap32(x)
+#define __REV16(x) __builtin_bswap16(x)
 
 typedef struct {
     uint8_t reg;   // Die Register-Adresse

@@ -104,7 +104,7 @@ static void _SCANNER_getSpectrum (void)
 {
     SCANNER_Handle handle = &scannerContext;
     const int N = 10;
-    const int OVER = 30;
+    const int OVER = 30; 
     const uint32_t grid = 10000;
     int i;
     int n;
@@ -124,22 +124,18 @@ static void _SCANNER_getSpectrum (void)
         }
  
         /* Set radio frequency */
-#ifndef ARDUINO_ARCH_ESP32
-        if (ADF7021_setPLL(radio, handle->spectrumFrequency + grid/2 - 100000) == LPCLIB_SUCCESS) {
+#ifdef RX_SX1278
+        float denoised = SX1278_setRadioFrequencyHz(handle->spectrumFrequency + grid/2 - 100000, true);
+        // vTaskDelay(1/portTICK_PERIOD_MS); // Wait for RSSI sample
+        // SYS_readRssi(sys, &denoised);     // 32 sample smoothing also done by RX
+
+        if (true) {
 #else
-        SX1278_setRadioFrequency(handle->spectrumFrequency + grid/2.0 - 100000);
-        vTaskDelay(4/portTICK_PERIOD_MS); // Wait for RSSI sample
-        if(true){
-#endif
+        if (ADF7021_setPLL(radio, handle->spectrumFrequency + grid/2 - 100000) == LPCLIB_SUCCESS) {
             /* Measure channel power */
             avgLevel = 0;
 
-            // vTaskDelay(4/portTICK_PERIOD_MS); // Wait for RSSI sample
-            // SYS_readRssi(sys, &avgLevel); //level[i]);
-            // float denoised = avgLevel;
-
             for (i = 0; i < OVER; i++) {
-//                vTaskDelay(4/portTICK_PERIOD_MS); // Wait for RSSI sample
                 SYS_readRssi(sys, &level[i]);
                 avgLevel += level[i];
             }
@@ -159,7 +155,7 @@ static void _SCANNER_getSpectrum (void)
             else {
                 denoised = -140.0f;
             }
-
+#endif
             sprintf(&s[strlen(s)], ",%.0f", (denoised + 140.0f) * 4.0);   //10.0f);
         }
         else {
@@ -230,24 +226,24 @@ static void _SCANNER_rtosCallback (TimerHandle_t xTimer)   //(void const *argume
     xTaskNotify( xTaskScanner,scannerContext.scanTickTimeout,eSetValueWithOverwrite);
 }
 
-
-// static bool _SCANNER_checkEvent (SCANNER_Handle handle)
-// {
-//     bool haveEvent = false;
-
-
-//     /* Something in the mailbox? */
-//     handle->rtosEvent = osMailGet(handle->queue, 0);
-//     haveEvent |= handle->rtosEvent.status == osEventMail;
-
-//     haveEvent |= handle->scanTickTimeout;
-
-//     return haveEvent;
-// }
+#ifndef ARDUINO_ARCH_ESP32
+static bool _SCANNER_checkEvent (SCANNER_Handle handle)
+{
+    bool haveEvent = false;
 
 
-// osMailQDef(scannerQueueDef, SCANNER_QUEUE_LENGTH, SCANNER_Message);
+    /* Something in the mailbox? */
+    handle->rtosEvent = osMailGet(handle->queue, 0);
+    haveEvent |= handle->rtosEvent.status == osEventMail;
 
+    haveEvent |= handle->scanTickTimeout;
+
+    return haveEvent;
+}
+
+
+osMailQDef(scannerQueueDef, SCANNER_QUEUE_LENGTH, SCANNER_Message);
+#endif
 
 
 LPCLIB_Result SCANNER_open (SCANNER_Handle *pHandle)

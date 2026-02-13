@@ -12,7 +12,9 @@ enum {
     SCREEN_STARTUP,
     SCREEN_SONDEDATA,
     SCREEN_DEBUG,
-    SCREEN_SHUTDOWN
+    SCREEN_SCANNER,
+    SCREEN_SHUTDOWN,
+    SCREEN_MAX
 };
 
 enum {
@@ -20,6 +22,10 @@ enum {
   BT_STATE_CONNECTED,
 };
 
+struct Signal {
+    uint32_t freq = 0;
+    float    rssi = -120;
+};
 
 
 class LilyGo {
@@ -35,7 +41,7 @@ public:
     void SX1278_setup();
     void SX1278_ioctl(const SX1278_Config config[]);
     void SX1278_setBitRate(uint16_t bitrate);
-    void SX1278_setRadioFrequency(float freqInHz);
+    float SX1278_setRadioFrequencyHz(uint32_t freqInHz, bool needRssi);
     void SX1278_readRSSI(float* newLevel);
     void EEPROM_setup();
     void EEPROM_writeCfg(uint32_t frequency);
@@ -45,6 +51,7 @@ public:
     void setDisplayData(double, double, double, float ,char* , float, uint32_t);
     void setDisplayFreq(float);
     void toggleDebugScreen();
+    void toggleScannerScreen(int enable);
     void switchOffScreen();
     void setDebugCrc(int eCrcCntr, int blockCntr);
 
@@ -53,24 +60,30 @@ private:
     void OLED_drawBat();
     void OLED_drawRSSI();
     void OLED_show(bool);
-    void OLED_updateGraphics(uint8_t displayCmd);
     void OLED_updateVoltage(float vBatt);
-    void OLED_updateScreen(uint8_t screen = SCREEN_CURRENT);
+    void OLED_drawScreen(uint8_t screen, bool disableScreenSaver = false);
     void handleConsole(const char *cmd);
 
+    void updateTopSignals(uint32_t newFreq, float newRssi);
+    void resetTopList();
+
     BLECharacteristic *pRxCharacteristic;
-    int guiCmdIdx = 0, initScreenCntDwn = 0, displayAgeCntdwn = 0, 
+    TimerHandle_t screenSaverTimer;
+    Signal topSignals[4];
+
+    int guiCmdIdx = 0, 
         debug_age = 0, debug_RS41frameNr = 0, debug_RS41CrcCntr = 0, debug_RS41BlockCntr = 0;
-    bool BTisConnected;
+    bool BTisConnected, isCharging = false, screenIsOff = false;
     uint8_t activeScreen = SCREEN_STARTUP, detectorInEeprom;
     uint32_t latestDebugMsg,frequencyInEeprom,SerialNoEsp,versionBT = 0x05000000;
     double lat,lon,alt;
-    float vBatt,freqMhz,rssi;
+    float voltageCalibrationFactor = 1.06, vBatt,vBattLast = 0.0f,vBattOnStart,freqMhz,rssi;
     char id[20],guiCmd[20];
     // Reboot reason messages; displayed as numbers in 'Bootloader' field on App screen after a reset 
-    const char *rereMsg[16] = { "UNKNOWN", "POWERON", "EXTERNAL PIN", "SW RESTART", "PANIC", "INTERRUPT WTD",
-                                "TASK WTD", "OTHER WTD", "EXITDEEPSLEEP", "BROWNOUT", "SDIO", "by USB",
-                                "by JTAG", "EFUSE ERROR", "POWER GLITCH", "CPU_LOCKUP" };
+    const char PROGMEM *rereMsg[16] = { 
+        "UNKNOWN", "POWERON", "EXTERNAL PIN", "SW RESTART", "PANIC", "INTERRUPT WTD",
+        "TASK WTD", "OTHER WTD", "EXITDEEPSLEEP", "BROWNOUT", "SDIO", "by USB",
+        "by JTAG", "EFUSE ERROR", "POWER GLITCH", "CPU_LOCKUP" };
 };
 
 

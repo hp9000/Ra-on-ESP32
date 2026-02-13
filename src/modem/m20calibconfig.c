@@ -4,6 +4,7 @@
 #include "m20.h"
 #include "m20private.h"
 
+#include "espPorting.h"
 
 #define M20_MAX_SONDES         4
 

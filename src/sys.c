@@ -50,7 +50,7 @@
 // #include "imet54.h"
 // #include "jinyang.h"
 // #include "lms6.h"
-// #include "m10.h"
+#include "m10.h"
 // #include "m20.h"
 // #include "meisei.h"
 // #include "mon.h"
@@ -61,7 +61,7 @@
 // #include "psb3.h"
 // #include "rinex.h"
 #include "rs41.h"
-// #include "rs92.h"
+#include "rs92.h"
 // #include "srsc.h"
 #include "sys.h"
 // #include "windsond.h"
@@ -145,7 +145,7 @@ struct SYS_Context {
     osTimerId startupPowerControlTimeout;
 
     RS41_Handle rs41;
-    // RS92_Handle rs92;
+    RS92_Handle rs92;
     // BEACON_Handle beacon;
     // CF06_Handle cf06;
     DFM_Handle dfm;
@@ -154,7 +154,7 @@ struct SYS_Context {
     // IMET54_Handle imet54;
     // JINYANG_Handle jinyang;
     // LMS6_Handle lms6;
-    // M10_Handle m10;
+    M10_Handle m10;
     // M20_Handle m20;
     // MRZ_Handle mrz;
     // PILOT_Handle pilot;
@@ -645,19 +645,7 @@ static const SX1278_Config radioModeVaisala[] = {
     { 0xFF, 0xFF } // Ende-Markierung
 };
 
-
 static const SX1278_Config radioModeGraw[] = {
-// HP    { .reg = 0x01, .value = 0b00000001 }, // RegOpMode -> FSK Mode standby
-//     { .reg = 0x02, .value = 0x32},        // RegBitrateMsb -> 2500 bps
-//     { .reg = 0x03, .value = 0x00},        // RegBitrateLsb
-// //    { .reg = 0x04, .value = 0x00 },       // RegFdevMsb -> 2.4 kHz // ?????
-// //    { .reg = 0x05, .value = 0x27 },       // RegFdevLsb            // ?????
-//     { .reg = 0x0D, .value = 0b00011110 }, // RegRxConfig -> AFC & AGC
-//     { .reg = 0x12, .value = 0b00010101 }, // RegRxBw  -> 10.4 kHz
-//     { .reg = 0x13, .value = 0b00010100 }, // RegAfcBw -> 20.8 kHz 
-//     { 0xFF, 0xFF } // Ende-Markierung
-// };
-
     { .reg = 0x01, .value = 0b00000000 }, // RegOpMode -> FSK Mode sleep
     { .reg = 0x02, .value = 0x32},        // RegBitrateMsb -> 2500 bps
     { .reg = 0x03, .value = 0x00},        // RegBitrateLsb
@@ -669,12 +657,37 @@ static const SX1278_Config radioModeGraw[] = {
     { 0xFF, 0xFF } // Ende-Markierung
 };
 
-static const SX1278_Config radioModeC34C50[] = {   //used for scanner init
-    { .reg = 0x01, .value = 0b00000001 }, // RegOpMode -> FSK Mode standby
-    { .reg = 0x0D, .value = 0b00000000 }, // all off, manual gain
+static const SX1278_Config radioModeModem[] = {   //used for scanner init
+    { .reg = 0x01, .value = 0b00000000 }, // RegOpMode -> FSK Mode sleep
+    { .reg = 0x02, .value = 0x0D },       // RegBitrateMsb -> 9600 bps
+    { .reg = 0x03, .value = 0x05 },       // RegBitrateLsb
+    { .reg = 0x04, .value = 0x00 },       // RegFdevMsb -> 5 kHz
+    { .reg = 0x05, .value = 0x52 },       // RegFdevLsb 
     { .reg = 0x12, .value = 0b00010100 }, // RegRxBw  -> 20.8 kHz
+    { .reg = 0x13, .value = 0b00010010 }, // RegAfcBw -> 20 kHz   
+    { .reg = 0x0D, .value = 0b11111110 }, // RegRxConfig -> AFC & AGC, gain by AGC
     { 0xFF, 0xFF } // Ende-Markierung
 };
+
+static const SX1278_Config radioModeC34C50[] = {   //used for scanner init
+    { .reg = 0x01, .value = 0b00000000 }, // RegOpMode -> FSK Mode sleep
+    { .reg = 0x0C, .value = 0b11000000 }, // highest gain – 48 dB
+    { .reg = 0x12, .value = 0b00010100 }, // RegRxBw  -> 20.8 kHz
+    
+    // // ChatGPT 1
+    // { .reg = 0x01, .value = 0b00000000 }, // RegOpMode -> FSK Mode sleep
+    // { .reg = 0x0C, .value = 0b00100011 }, // LNA Maximum
+    // { .reg = 0x0D, .value = 0b10011010 }, // AFC & AGC off, manual gain
+    // { .reg = 0x12, .value = 0b00010010 }, // RegRxBw   -> 62.5 kHz
+
+    // // ChatGPT 2
+    // { .reg = 0x01, .value = 0b00000000 }, // RegOpMode -> FSK Mode sleep
+    // { .reg = 0x0C, .value = 0b00100011 }, // LNA Maximum
+    // { .reg = 0x0D, .value = 0b00011110 }, // AFC & AGC off, manual gain
+    // { .reg = 0x12, .value = 0b00010010 }, // RegRxBw   -> 62.5 kHz
+
+    { 0xFF, 0xFF } // Ende-Markierung
+};  
 
 #endif
 
@@ -841,7 +854,7 @@ static void _SYS_reportControls (SYS_Handle handle)
 
 
 
-static void _SYS_setRadioFrequency (SYS_Handle handle, float frequency)
+static void _SYS_setRadioFrequency (SYS_Handle handle, float frequency)  //in Hz
 {
     if (frequency < 400e6f) {
         frequency = 400e6f;
@@ -853,10 +866,10 @@ static void _SYS_setRadioFrequency (SYS_Handle handle, float frequency)
 #ifdef RX_SX1278
     MAILBOX_IRQHandler((uint32_t)1u << 30);
     handle->currentFrequency = frequency;
-    SX1278_setRadioFrequency(frequency);
+    SX1278_setRadioFrequencyHz((uint32_t)frequency,false);
     ttgo_setDisplayFreq(frequency);
     MAILBOX_IRQHandler((uint32_t)1u << 31);
-#else
+#else 
     LPC_MAILBOX->IRQ0SET = (1u << 30);
 
     SRSC_pauseResume(handle->srsc, ENABLE);
@@ -1046,16 +1059,20 @@ LPCLIB_Result SYS_enableDetector (SYS_Handle handle, float frequency, SONDE_Dete
                 MAILBOX_IRQHandler((uint32_t)1u << 0);
                 break;
 
-//             case SONDE_DETECTOR_MODEM:
-//                 ADF7021_setDemodClockDivider(radio, CONFIG_getDemodClockDivider(9600));
-//                 ADF7021_setBitRate(radio, 9600);
-//                 ADF7021_ioctl(radio, radioModeModem);
-
-//                 _SYS_setRadioFrequency(handle, frequency);
-//                 _SYS_reportRadioFrequency(handle);  /* Inform host */
+            case SONDE_DETECTOR_MODEM:
+#ifndef RX_SX1278
+                ADF7021_setDemodClockDivider(radio, CONFIG_getDemodClockDivider(9600));
+                ADF7021_setBitRate(radio, 9600);
+                ADF7021_ioctl(radio, radioModeModem);
+#else
+                SX1278_ioctl(radioModeModem);
+#endif
+                _SYS_setRadioFrequency(handle, frequency);
+                _SYS_reportRadioFrequency(handle);  /* Inform host */
 
 //                 LPC_MAILBOX->IRQ0SET = (1u << 3); //TODO
-//                 break;
+                MAILBOX_IRQHandler((uint32_t)1u << 3);
+                break;
 
 //             case SONDE_DETECTOR_PILOT:
 //                 ADF7021_setDemodClockDivider(radio, CONFIG_getDemodClockDivider(4800));
@@ -1200,8 +1217,8 @@ LPCLIB_Result SYS_sendBreak (int durationMilliseconds)
 static void SYS_sleep (SYS_Handle handle)
 {
     ESP_LOGE("HP","SYS_sleep");
-    ttgo_switchOffScreen();
-    esp_deep_sleep_start();
+    // ttgo_switchOffScreen();
+    // esp_deep_sleep_start();
 #ifndef RX_SX1278            
     // uint32_t OldSystemCoreClock;
 
@@ -1969,7 +1986,6 @@ if (cl[0] != 0) {
 #endif
         case HOST_CHANNEL_SWITCHES:
             {
-    ESP_LOGE("HP","cl = %s", cl);
                 int command;
                 int enableValue;
                 int extra1;
@@ -1981,6 +1997,7 @@ if (cl[0] != 0) {
                         case 3:
                             if (sscanf(cl, "#%*d,%*d,%d", &enableValue) == 1) {
                                 SCANNER_setMode(scanner, enableValue);
+                                ttgo_toggleScannerScreen(enableValue);
                                 if ((enableValue == 2) || (enableValue == 3)) {     /* Spectrum scan mode */
                                     handle->currentFrequency = 0;
                                     _SYS_reportRadioFrequency(handle);
@@ -2271,14 +2288,14 @@ void SYS_thread (void *param)
 //     EPHEMERIS_init();
 
     RS41_open(&handle->rs41);
-//     RS92_open(&handle->rs92);
+    RS92_open(&handle->rs92);
     DFM_open(&handle->dfm);
 //     BEACON_open(&handle->beacon);
 //     SRSC_open(&handle->srsc);
 //     IMET_open(&handle->imet);
 //     IMET54_open(&handle->imet54);
 //     JINYANG_open(&handle->jinyang);
-//     M10_open(&handle->m10);
+    M10_open(&handle->m10);
 //     M20_open(&handle->m20);
 //     MEISEI_open(&handle->meisei);
 //     WINDSOND_open(&handle->windsond);
@@ -2303,7 +2320,7 @@ void SYS_thread (void *param)
      */
 //    handle->inactivityTimeout = osTimerCreate(osTimer(inactivityTimer), osTimerOnce, (void *)SYS_TIMERMAGIC_INACTIVITY);
     handle->inactivityTimeout = xTimerCreate( "ACTIVITY-Timer",pdMS_TO_TICKS(INACTIVITY_TIMEOUT-5000), pdFALSE, (void *)SYS_TIMERMAGIC_INACTIVITY, _SYS_osalCallback);
-    xTimerStart( handle->inactivityTimeout, 0);
+    //xTimerStart( handle->inactivityTimeout, 0);
 
 #ifndef ARDUINO_ARCH_ESP32
 #if (BOARD_RA == 1)
@@ -2365,7 +2382,7 @@ void SYS_thread (void *param)
                 if (bleCommandLine[i][0] != 0) {
                     strcpy(handle->commandLine, bleCommandLine[i]);
                     bleCommandLine[i][0] = 0; // clear after reading
-                    xTimerReset( handle->inactivityTimeout, 0);
+ //                   xTimerReset( handle->inactivityTimeout, 0);
                     _SYS_handleBleCommand(handle);
                 }
                 break;                
@@ -2376,7 +2393,7 @@ void SYS_thread (void *param)
 
                 case APP_EVENT_SUSPEND:
                     vTaskDelay(5000/portTICK_PERIOD_MS);  
-                    SYS_sleep(handle);
+                    //SYS_sleep(handle);
                     break;
 
 #ifndef ARDUINO_ARCH_ESP32
@@ -2455,7 +2472,6 @@ void SYS_thread (void *param)
                             }
 
                             /* Process buffer */
-#ifndef ARDUINO_ARCH_ESP32
                             if (sondeType == SONDE_M10) {
                                 M10_processBlock(
                                         handle->m10,
@@ -2468,6 +2484,7 @@ void SYS_thread (void *param)
                                 /* Let scanner prepare for next frequency */
                                 SCANNER_notifyValidFrame(scanner);
                             }
+#ifndef ARDUINO_ARCH_ESP32
                             else if (sondeType == SONDE_M20) {
                                 M20_processBlock(
                                         handle->m20,
@@ -2493,7 +2510,7 @@ void SYS_thread (void *param)
                                 SCANNER_notifyValidFrame(scanner);
                             }
 #endif
-                            /*else*/ if (sondeType == SONDE_RS41) {
+                            else if (sondeType == SONDE_RS41) {
                                 RS41_processBlock(
                                         handle->rs41,
                                         ipc[bufferIndex].data8,
@@ -2505,18 +2522,18 @@ void SYS_thread (void *param)
                                 /* Let scanner prepare for next frequency */
                                 SCANNER_notifyValidFrame(scanner);
                             }
-                        //     else if (sondeType == SONDE_RS92) {
-                        //         RS92_processBlock(
-                        //                 handle->rs92,
-                        //                 ipc[bufferIndex].data8,
-                        //                 ipc[bufferIndex].numBits,
-                        //                 handle->currentFrequency,
-                        //                 SYS_getFrameRssi(handle),
-                        //                 handle->realTime);
+                            else if (sondeType == SONDE_RS92) {
+                                RS92_processBlock(
+                                        handle->rs92,
+                                        ipc[bufferIndex].data8,
+                                        ipc[bufferIndex].numBits,
+                                        handle->currentFrequency,
+                                        SYS_getFrameRssi(handle),
+                                        handle->realTime);
 
-                        //         /* Let scanner prepare for next frequency */
-                        //         SCANNER_notifyValidFrame(scanner);
-                        //     }
+                                /* Let scanner prepare for next frequency */
+                                SCANNER_notifyValidFrame(scanner);
+                            }
                             else if (sondeType == SONDE_DFM_NORMAL) {
                                 if (DFM_processBlock(
                                         handle->dfm,
