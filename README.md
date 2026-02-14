@@ -3,6 +3,8 @@
 This is a ported firmware for a Ra Radiosonde Receiver running on ESP32 HW (like TTGO Board or Heltec LoRa32 V3).
 As the named boards have a less capable RX chip, fewer sonde types than the original Ra HW can be decoded.
 
+Precompiled binaries you will find by clicking on **Releases** on the right.
+
 For installation use https://www.espboards.dev/tools/program/ or [esptool](docs) 
 
 ## Status
@@ -39,8 +41,8 @@ For installation use https://www.espboards.dev/tools/program/ or [esptool](docs)
   </tr>
 </table>
 
-## Acknowledgments
-A big Thanks for the support of this project goes to Demy, Dennis, DF9DQ and DL5RCB
+## Acknowledgements
+A big Thanks! for the support of this project to Demy, Dennis, DF9DQ and DL5RCB!
     
 ## License
 
