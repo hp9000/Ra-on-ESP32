@@ -30,7 +30,7 @@ For installation use https://www.espboards.dev/tools/program/ or [esptool](docs)
     <td>M10</td> <td>✔️</td> <td>❌</td> <td>✔️</td> 
   </tr>
   <tr>
-    <td>M20</td> <td>✔️</td> <td>❌</td> <td>❌</td> 
+    <td>M20</td> <td>❌</td> <td></td> <td></td> 
   </tr>
 
 </table>
