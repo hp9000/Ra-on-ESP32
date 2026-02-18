@@ -20,17 +20,24 @@ For installation use https://www.espboards.dev/tools/program/ or [esptool](docs)
     <td>DFM17</td> <td>✔️</td> <td>✔️</td> <td>✔️</td>
   </tr>
   <tr>
-    <td>DFM09</td> <td>✔️</td> <td>❌</td> <td>✔️</td> 
+    <td>DFM09</td> <td>✔️</td> <td></td> <td>✔️</td> 
   </tr>
   <tr>
-    <td>PS15</td> <td>✔️</td> <td>❌</td> <td>✔️</td> 
+    <td>PS15</td> <td>✔️</td> <td></td> <td>✔️</td> 
   </tr>
   <tr>
     <td rowspan="2">MODEM</td>
-    <td>M10</td> <td>✔️</td> <td>❌</td> <td>✔️</td> 
+    <td>M10</td> <td>✔️</td> <td></td> <td>✔️</td> 
   </tr>
   <tr>
     <td>M20</td> <td>❌</td> <td></td> <td></td> 
+  </tr>
+   <tr>
+    <td rowspan="2">MEISEI</td>
+    <td>iMS-100</td> <td>✔️</td> <td></td> <td>✔️</td> 
+  </tr>
+  <tr>
+    <td>RS11G</td> <td>✔️</td> <td></td> <td></td> 
   </tr>
 
 </table>
