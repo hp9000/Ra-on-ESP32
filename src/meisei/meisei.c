@@ -12,6 +12,7 @@
 #include "meiseiprivate.h"
 #include "bch.h"
 
+#include "bridge.h"
 
 /** Context */
 typedef struct MEISEI_Context {
@@ -129,6 +130,8 @@ static void _MEISEI_sendKiss (MEISEI_InstanceData *instance)
                 );
 
     if (length > 0) {
+        ttgo_setDisplayData(latitude,longitude,instance->gps.observerLLA.alt,
+            instance->rxFrequencyMHz,sModel/*instance->name*/,instance->rssi,instance->frameCounter);
         SYS_send2Host(HOST_CHANNEL_INFO, s);
     }
 }

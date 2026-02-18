@@ -9,8 +9,28 @@
 #include "meiseiprivate.h"
 
 
+static uint64_t *g_pBCH;
 
-/* BCH error correction */
+int _MEISEI_getDataBCH (int index)
+{
+    if (index < 12+34) {
+        return (*g_pBCH >> (46 - 1 - index)) & 1;
+    }
+    else {
+        return 0;
+    }
+}
+
+void _MEISEI_toggleDataBCH (int index)
+{
+    if (index < 12+34) {
+        *g_pBCH ^= 1ull << (46 - 1 - index);
+    }
+}
+    
+    
+    
+ /* BCH error correction */
 LPCLIB_Result _MEISEI_checkBCH (MEISEI_RawPacket *raw, int *pNumErrors)
 {
     int totalErrors = 0;
@@ -20,27 +40,27 @@ LPCLIB_Result _MEISEI_checkBCH (MEISEI_RawPacket *raw, int *pNumErrors)
     int i;
 
 
-    int _MEISEI_getDataBCH (int index)
-    {
-        if (index < 12+34) {
-            return (*pBCH >> (46 - 1 - index)) & 1;
-        }
-        else {
-            return 0;
-        }
-    }
+    // int _MEISEI_getDataBCH (int index)
+    // {
+    //     if (index < 12+34) {
+    //         return (*pBCH >> (46 - 1 - index)) & 1;
+    //     }
+    //     else {
+    //         return 0;
+    //     }
+    // }
 
-    void _MEISEI_toggleDataBCH (int index)
-    {
-        if (index < 12+34) {
-            *pBCH ^= 1ull << (46 - 1 - index);
-        }
-    }
+    // void _MEISEI_toggleDataBCH (int index)
+    // {
+    //     if (index < 12+34) {
+    //         *pBCH ^= 1ull << (46 - 1 - index);
+    //     }
+    // }
 
 
     result = LPCLIB_SUCCESS;
     for (i = 0; i < 6; i++) {
-        pBCH = &raw->fields[i];
+        g_pBCH = &raw->fields[i];
         result = BCH_63_51_t2_process(_MEISEI_getDataBCH, _MEISEI_toggleDataBCH, &numErrors);
         totalErrors += numErrors;
         if (result != LPCLIB_SUCCESS) {

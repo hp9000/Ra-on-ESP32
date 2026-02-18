@@ -52,7 +52,7 @@
 // #include "lms6.h"
 #include "m10.h"
 #include "m20.h"
-// #include "meisei.h"
+#include "meisei.h"
 // #include "mon.h"
 // #include "mrz.h"
 // #include "mts01.h"
@@ -160,7 +160,7 @@ struct SYS_Context {
     // PILOT_Handle pilot;
     // PSB3_Handle psb3;
     // SRSC_Handle srsc;
-    // MEISEI_Handle meisei;
+    MEISEI_Handle meisei;
     // WINDSOND_Handle windsond;
     // MTS01_Handle mts01;
     // PDM_Handle pdm;
@@ -669,6 +669,18 @@ static const SX1278_Config radioModeModem[] = {   //used for scanner init
     { 0xFF, 0xFF } // Ende-Markierung
 };
 
+static const SX1278_Config radioModeMeisei[] = { 
+    { .reg = 0x01, .value = 0b00000000 }, // RegOpMode -> FSK Mode sleep
+    // { .reg = 0x02, .value = 0x32},        // RegBitrateMsb -> 2500 bps  !!!2400
+    // { .reg = 0x03, .value = 0x00},        // RegBitrateLsb
+    { .reg = 0x04, .value = 0x00 },       // RegFdevMsb -> 10 kHz
+    { .reg = 0x05, .value = 0xA4 },       // RegFdevLsb 
+    { .reg = 0x12, .value = 0b00001110 }, // RegRxBw  -> 12.5 kHz   
+    { .reg = 0x13, .value = 0x03 },       // RegAfcBw -> 50 kHz  
+    { .reg = 0x0D, .value = 0b11111110 }, // RegRxConfig -> AFC & AGC, gain by AGC
+    { 0xFF, 0xFF } // Ende-Markierung
+};
+
 static const SX1278_Config radioModeC34C50[] = {   //used for scanner init
     { .reg = 0x01, .value = 0b00000000 }, // RegOpMode -> FSK Mode sleep
     { .reg = 0x0C, .value = 0b11000000 }, // highest gain – 48 dB
@@ -1022,16 +1034,22 @@ LPCLIB_Result SYS_enableDetector (SYS_Handle handle, float frequency, SONDE_Dete
 //                 LPC_MAILBOX->IRQ0SET = (1u << 8); //TODO
 //                 break;
 
-//             case SONDE_DETECTOR_MEISEI:
-//                 ADF7021_setDemodClockDivider(radio, CONFIG_getDemodClockDivider(2400));
-//                 ADF7021_setBitRate(radio, 2400);
-//                 ADF7021_ioctl(radio, radioModeMeisei);
+            case SONDE_DETECTOR_MEISEI:
+#ifndef RX_SX1278       
+                ADF7021_setDemodClockDivider(radio, CONFIG_getDemodClockDivider(2400));
+                ADF7021_setBitRate(radio, 2400);
+                ADF7021_ioctl(radio, radioModeMeisei);
+#else
+                SX1278_ioctl(radioModeMeisei);
+                SX1278_setBitRate(2400);
+#endif
 
-//                 _SYS_setRadioFrequency(handle, frequency);
-//                 _SYS_reportRadioFrequency(handle);  /* Inform host */
+                _SYS_setRadioFrequency(handle, frequency);
+                _SYS_reportRadioFrequency(handle);  /* Inform host */
 
-//                 LPC_MAILBOX->IRQ0SET = (1u << 5); //TODO
-//                 break;
+                //LPC_MAILBOX->IRQ0SET = (1u << 5); //TODO
+                MAILBOX_IRQHandler((uint32_t)1u << 5);
+                break;
 
 //             case SONDE_DETECTOR_WINDSOND:
 //                 ADF7021_setDemodClockDivider(radio, CONFIG_getDemodClockDivider(2400));
@@ -2297,7 +2315,7 @@ void SYS_thread (void *param)
 //     JINYANG_open(&handle->jinyang);
     M10_open(&handle->m10);
     M20_open(&handle->m20);
-//     MEISEI_open(&handle->meisei);
+    MEISEI_open(&handle->meisei);
 //     WINDSOND_open(&handle->windsond);
 //     MRZ_open(&handle->mrz);
 //     PILOT_open(&handle->pilot);
@@ -2562,19 +2580,19 @@ void SYS_thread (void *param)
                                     SCANNER_notifyValidFrame(scanner);
                                 }
                             }
-                        //     else if ((sondeType == SONDE_MEISEI_CONFIG) || (sondeType == SONDE_MEISEI_GPS)) {
-                        //         if (MEISEI_processBlock(
-                        //                 handle->meisei,
-                        //                 sondeType,
-                        //                 ipc[bufferIndex].data8,
-                        //                 ipc[bufferIndex].numBits,
-                        //                 handle->currentFrequency,
-                        //                 SYS_getFrameRssi(handle),
-                        //                 handle->realTime) == LPCLIB_SUCCESS) {
-                        //             /* Frame complete. Let scanner prepare for next frequency */
-                        //             SCANNER_notifyValidFrame(scanner);
-                        //         }
-                        //     }
+                            else if ((sondeType == SONDE_MEISEI_CONFIG) || (sondeType == SONDE_MEISEI_GPS)) {
+                                if (MEISEI_processBlock(
+                                        handle->meisei,
+                                        sondeType,
+                                        ipc[bufferIndex].data8,
+                                        ipc[bufferIndex].numBits,
+                                        handle->currentFrequency,
+                                        SYS_getFrameRssi(handle),
+                                        handle->realTime) == LPCLIB_SUCCESS) {
+                                    /* Frame complete. Let scanner prepare for next frequency */
+                                    SCANNER_notifyValidFrame(scanner);
+                                }
+                            }
                         //     else if (sondeType == SONDE_RSG20) {
                         //         if (JINYANG_processBlock(
                         //                 handle->jinyang,

@@ -4,6 +4,7 @@
 #include "meisei.h"
 #include "meiseiprivate.h"
 
+#include "espPorting.h"
 
 #define MEISEI_MAX_SONDES         4
 
