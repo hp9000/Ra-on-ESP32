@@ -1,7 +1,7 @@
 # Ra Radiosonde Receiver - Firmware for ESP32 
 
 This is a ported firmware for a Ra Radiosonde Receiver running on ESP32 HW (like TTGO Board or Heltec LoRa32 V3).
-As the named boards have a less capable RX chip, fewer sonde types than the original Ra HW can be decoded.
+As the RX chip on this boards does not support AFSK demodulation, some sonde types (IMET4, SRSC and others) cannot be decoded.
 
 Precompiled binaries you will find by clicking on **Releases** on the right.
 
