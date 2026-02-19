@@ -39,7 +39,13 @@ For installation use https://www.espboards.dev/tools/program/ or [esptool](docs)
   <tr>
     <td>RS11G</td> <td>✔️</td> <td></td> <td></td> 
   </tr>
-
+   <tr>
+    <td rowspan="2">NEWSKY</td>
+    <td>CF-06-AH</td> <td>✔️</td> <td></td> <td>✔️</td> 
+  </tr>
+  <tr>
+    <td>GTH3</td> <td>✔️</td> <td></td> <td></td> 
+  </tr>
 </table>
 
 ## Acknowledgements
