@@ -1,7 +1,7 @@
 # Ra Radiosonde Receiver - Firmware for ESP32 
 
 This is a ported firmware for a Ra Radiosonde Receiver running on ESP32 HW (like TTGO Board or Heltec LoRa32 V3).
-As the named boards have a less capable RX chip, fewer sonde types than the original Ra HW can be decoded.
+As the RX chip on this boards does not support AFSK demodulation, some sonde types (IMET4, SRSC and others) cannot be decoded.
 
 Precompiled binaries you will find by clicking on **Releases** on the right.
 
@@ -20,19 +20,32 @@ For installation use https://www.espboards.dev/tools/program/ or [esptool](docs)
     <td>DFM17</td> <td>✔️</td> <td>✔️</td> <td>✔️</td>
   </tr>
   <tr>
-    <td>DFM09</td> <td>✔️</td> <td>❌</td> <td>✔️</td> 
+    <td>DFM09</td> <td>✔️</td> <td></td> <td>✔️</td> 
   </tr>
   <tr>
-    <td>PS15</td> <td>✔️</td> <td>❌</td> <td>✔️</td> 
+    <td>PS15</td> <td>✔️</td> <td></td> <td>✔️</td> 
   </tr>
   <tr>
     <td rowspan="2">MODEM</td>
-    <td>M10</td> <td>✔️</td> <td>❌</td> <td>✔️</td> 
+    <td>M10</td> <td>✔️</td> <td></td> <td>✔️</td> 
   </tr>
   <tr>
-    <td>M20</td> <td>✔️</td> <td>❌</td> <td>❌</td> 
+    <td>M20</td> <td>❌</td> <td></td> <td></td> 
   </tr>
-
+   <tr>
+    <td rowspan="2">MEISEI</td>
+    <td>iMS-100</td> <td>✔️</td> <td></td> <td>✔️</td> 
+  </tr>
+  <tr>
+    <td>RS11G</td> <td>✔️</td> <td></td> <td></td> 
+  </tr>
+   <tr>
+    <td rowspan="2">NEWSKY</td>
+    <td>CF-06-AH</td> <td>✔️</td> <td></td> <td>✔️</td> 
+  </tr>
+  <tr>
+    <td>GTH3</td> <td>✔️</td> <td></td> <td></td> 
+  </tr>
 </table>
 
 ## Acknowledgements
