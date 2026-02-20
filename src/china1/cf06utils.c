@@ -45,7 +45,7 @@ _Bool _CF06_checkCRCOuter (uint8_t *buffer, int length, uint16_t receivedCRC)
 _Bool _CF06_checkCRCInner (uint8_t *buffer, int length, uint16_t receivedCRC)
 {
 #ifdef ARDUINO_ARCH_ESP32
-    return (receivedCRC == getCRC(buffer, length));
+    return (receivedCRC == getCRC2(buffer, length, 0x0000));
 #else
     CRC_Handle crc = LPCLIB_INVALID_HANDLE;
     CRC_Mode crcMode;
