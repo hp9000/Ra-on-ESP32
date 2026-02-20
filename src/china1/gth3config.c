@@ -4,6 +4,7 @@
 #include "gth3.h"
 #include "gth3private.h"
 
+#include "espPorting.h"
 
 #define GTH3_MAX_SONDES          2
 

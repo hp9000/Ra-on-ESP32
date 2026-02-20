@@ -319,10 +319,9 @@ LPCLIB_Result RS41_processBlock (
 
     /* Error correction */
     handle->nCorrectedErrors = 0;
-    #warning "HP: todo: reed-solomon causes reset"
-    // if (_RS41_checkReedSolomon (handle->pRawData, &handle->nCorrectedErrors, &longFrame) != LPCLIB_SUCCESS) {
-    //     return LPCLIB_ERROR;
-    // }
+    if (_RS41_checkReedSolomon (handle->pRawData, &handle->nCorrectedErrors, &longFrame) != LPCLIB_SUCCESS) {
+        return LPCLIB_ERROR;
+    }
 
     /* Verify received packet length indicator matches detected packet length. */
     uint8_t lengthIndicator = ((uint8_t *)buffer)[48];

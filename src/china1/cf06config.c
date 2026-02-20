@@ -4,7 +4,7 @@
 #include "cf06.h"
 #include "cf06private.h"
 
-#include "espRedefines.h"
+#include "espPorting.h"
 
 #define CF06_MAX_SONDES          2
 

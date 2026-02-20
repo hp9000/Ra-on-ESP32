@@ -12,6 +12,10 @@
 /* Check CRC */
 _Bool _GTH3_checkCRC (uint8_t *buffer, int length, uint16_t receivedCRC)
 {
+#ifdef ARDUINO_ARCH_ESP32
+    return (receivedCRC == getCRC(buffer, length));
+#warning "CRC wrongly configred"
+#else
     CRC_Handle crc = LPCLIB_INVALID_HANDLE;
     CRC_Mode crcMode;
     bool result = false;
@@ -33,5 +37,6 @@ _Bool _GTH3_checkCRC (uint8_t *buffer, int length, uint16_t receivedCRC)
     }
 
     return result;
+#endif
 }
 

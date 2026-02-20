@@ -42,10 +42,10 @@
 // #include "beacon.h"
 #include "bl652.h"
 // #include "bootloader.h"
-// #include "cf06.h"
-// #include "china1.h"
+#include "cf06.h"
+#include "china1.h"
 #include "dfm.h"
-// #include "gth3.h"
+#include "gth3.h"
 // #include "imet.h"
 // #include "imet54.h"
 // #include "jinyang.h"
@@ -147,9 +147,9 @@ struct SYS_Context {
     RS41_Handle rs41;
     RS92_Handle rs92;
     // BEACON_Handle beacon;
-    // CF06_Handle cf06;
+    CF06_Handle cf06;
     DFM_Handle dfm;
-    // GTH3_Handle gth3;
+    GTH3_Handle gth3;
     // IMET_Handle imet;
     // IMET54_Handle imet54;
     // JINYANG_Handle jinyang;
@@ -657,6 +657,19 @@ static const SX1278_Config radioModeGraw[] = {
     { 0xFF, 0xFF } // Ende-Markierung
 };
 
+static const SX1278_Config radioModeAsia1[] = {
+    { .reg = 0x01, .value = 0b00000000 }, // RegOpMode -> FSK Mode sleep
+    { .reg = 0x02, .value = 0x34},        // RegBitrateMsb -> 2400 bps
+    { .reg = 0x03, .value = 0x15},        // RegBitrateLsb
+    { .reg = 0x04, .value = 0x00 },       // RegFdevMsb -> 10 kHz
+    { .reg = 0x05, .value = 0xA4 },       // RegFdevLsb 
+    { .reg = 0x12, .value = 0b00001110 }, // RegRxBw  -> 12.5 kHz   
+    { .reg = 0x13, .value = 0x03 },       // RegAfcBw -> 50 kHz 
+    { .reg = 0x0D, .value = 0b11111110 }, // RegRxConfig -> AFC & AGC, gain by AGC
+    { 0xFF, 0xFF } // Ende-Markierung
+};
+
+
 static const SX1278_Config radioModeModem[] = {   //used for scanner init
     { .reg = 0x01, .value = 0b00000000 }, // RegOpMode -> FSK Mode sleep
     { .reg = 0x02, .value = 0x0D },       // RegBitrateMsb -> 9600 bps
@@ -671,8 +684,8 @@ static const SX1278_Config radioModeModem[] = {   //used for scanner init
 
 static const SX1278_Config radioModeMeisei[] = { 
     { .reg = 0x01, .value = 0b00000000 }, // RegOpMode -> FSK Mode sleep
-    // { .reg = 0x02, .value = 0x32},        // RegBitrateMsb -> 2500 bps  !!!2400
-    // { .reg = 0x03, .value = 0x00},        // RegBitrateLsb
+    // { .reg = 0x02, .value = 0x34},        // RegBitrateMsb -> 2400 bps 
+    // { .reg = 0x03, .value = 0x15},        // RegBitrateLsb
     { .reg = 0x04, .value = 0x00 },       // RegFdevMsb -> 10 kHz
     { .reg = 0x05, .value = 0xA4 },       // RegFdevLsb 
     { .reg = 0x12, .value = 0b00001110 }, // RegRxBw  -> 12.5 kHz   
@@ -1103,16 +1116,21 @@ LPCLIB_Result SYS_enableDetector (SYS_Handle handle, float frequency, SONDE_Dete
 //                 LPC_MAILBOX->IRQ0SET = (1u << 4); //TODO
 //                 break;
 
-//             case SONDE_DETECTOR_ASIA1: /* 2FSK 2.4k deviation, 2400 sym/s */
-//                 ADF7021_setDemodClockDivider(radio, CONFIG_getDemodClockDivider(2400));
-//                 ADF7021_setBitRate(radio, 2400);
-//                 ADF7021_ioctl(radio, radioModeAsia1);
+            case SONDE_DETECTOR_ASIA1: /* 2FSK 2.4k deviation, 2400 sym/s */
+#ifndef RX_SX1278
+                ADF7021_setDemodClockDivider(radio, CONFIG_getDemodClockDivider(2400));
+                ADF7021_setBitRate(radio, 2400);
+                ADF7021_ioctl(radio, radioModeAsia1);
+#else
+                SX1278_ioctl(radioModeAsia1);
+#endif
 
-//                 _SYS_setRadioFrequency(handle, frequency);
-//                 _SYS_reportRadioFrequency(handle);  /* Inform host */
+                _SYS_setRadioFrequency(handle, frequency);
+                _SYS_reportRadioFrequency(handle);  /* Inform host */
 
-//                 LPC_MAILBOX->IRQ0SET = (1u << 9); //TODO
-//                 break;
+//                LPC_MAILBOX->IRQ0SET = (1u << 9); //TODO
+                MAILBOX_IRQHandler((uint32_t)1u << 9);
+                break;
 
 //             case SONDE_DETECTOR_PSB3:
 //                 ADF7021_setDemodClockDivider(radio, CONFIG_getDemodClockDivider(768));
@@ -2319,8 +2337,8 @@ void SYS_thread (void *param)
 //     WINDSOND_open(&handle->windsond);
 //     MRZ_open(&handle->mrz);
 //     PILOT_open(&handle->pilot);
-//     CF06_open(&handle->cf06);
-//     GTH3_open(&handle->gth3);
+    CF06_open(&handle->cf06);
+    GTH3_open(&handle->gth3);
 //     PSB3_open(&handle->psb3);
 //     MTS01_open(&handle->mts01);
 //     LMS6_open(&handle->lms6);
@@ -2357,31 +2375,32 @@ void SYS_thread (void *param)
     SYS_Message *pMessage = &mySysMessage;
     while (1) {
         /* Wait for an event */
-//        PT_WAIT_UNTIL(&handle->pt, _SYS_checkEvent(handle));
+#ifdef ARDUINO_ARCH_ESP32      
         xQueueReceive(sysContext.queue, &mySysMessage,portMAX_DELAY);  
-        
-        // /* Change TX break for BLE port? */
-        // if (handle->blePortSetBreak) {
-        //     handle->blePortSetBreak = false;
+#else  
+        PT_WAIT_UNTIL(&handle->pt, _SYS_checkEvent(handle));
+        /* Change TX break for BLE port? */
+        if (handle->blePortSetBreak) {
+            handle->blePortSetBreak = false;
 
-        //     if (handle->blePortBreakTime != 0) {
-        //         UART_ioctl(blePort, blePortConfigBreakEnable);
-        //     }
-        //     else {
-        //         UART_ioctl(blePort, blePortConfigBreakDisable);
-        //     }
-        // }
+            if (handle->blePortBreakTime != 0) {
+                UART_ioctl(blePort, blePortConfigBreakEnable);
+            }
+            else {
+                UART_ioctl(blePort, blePortConfigBreakDisable);
+            }
+        }
 
-        // /* Message via Bluetooth? */
-        // if (strlen(handle->commandLine) > 0) {
-        //     if (!handle->hasPowerScript) {
-        //         osTimerStart(handle->inactivityTimeout, INACTIVITY_TIMEOUT);
-        //     }
+        /* Message via Bluetooth? */
+        if (strlen(handle->commandLine) > 0) {
+            if (!handle->hasPowerScript) {
+                osTimerStart(handle->inactivityTimeout, INACTIVITY_TIMEOUT);
+            }
 
-        //     _SYS_handleBleCommand(handle);
-        //     handle->commandLine[0] = 0;
-        // }
-
+            _SYS_handleBleCommand(handle);
+            handle->commandLine[0] = 0;
+        }
+#endif
         /* Update estimated real time */
         uint32_t delta_t = os_time - handle->last_os_time;
         if (delta_t > 0) {
@@ -2630,18 +2649,18 @@ void SYS_thread (void *param)
                         //             SCANNER_notifyValidFrame(scanner);
                         //         }
                         //     }
-                        //     else if (sondeType == SONDE_GTH3_CF06AH) {
-                        //         if (CHINA1_processBlock(
-                        //                 handle->cf06,
-                        //                 ipc[bufferIndex].data8,
-                        //                 ipc[bufferIndex].numBits,
-                        //                 handle->currentFrequency,
-                        //                 SYS_getFrameRssi(handle),
-                        //                 handle->realTime) == LPCLIB_SUCCESS) {
-                        //             /* Frame complete. Let scanner prepare for next frequency */
-                        //             SCANNER_notifyValidFrame(scanner);
-                        //         }
-                        //     }
+                            else if (sondeType == SONDE_GTH3_CF06AH) {
+                                if (CHINA1_processBlock(
+                                        handle->cf06,
+                                        ipc[bufferIndex].data8,
+                                        ipc[bufferIndex].numBits,
+                                        handle->currentFrequency,
+                                        SYS_getFrameRssi(handle),
+                                        handle->realTime) == LPCLIB_SUCCESS) {
+                                    /* Frame complete. Let scanner prepare for next frequency */
+                                    SCANNER_notifyValidFrame(scanner);
+                                }
+                            }
                         //     else if (sondeType == SONDE_PSB3) {
                         //         if (PSB3_processBlock(
                         //                 handle->psb3,

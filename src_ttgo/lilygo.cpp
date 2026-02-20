@@ -9,8 +9,6 @@
 #include "bridge.h"
 #include "espPorting.h"
 #include "esp_task_wdt.h"
-
-//#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
 #include <esp_log.h>
 #include <driver/adc.h>
 #include "esp_adc_cal.h"
@@ -48,7 +46,7 @@ void LilyGo::setup() {
     
     BTisConnected = false;
     BLE_setup(true);   
-    esp_base_mac_addr_get(baseMac);   // Bluetooth MAC: 48:CA:43:B5:87:6C
+    esp_base_mac_addr_get(baseMac);   
     SerialNoEsp = baseMac[3]<<16 |baseMac[4]<<8 |baseMac[5];
     EEPROM_setup();
     SX1278_setup();
@@ -60,7 +58,6 @@ void LilyGo::setup() {
     if(ESP_OK != esp_task_wdt_init(5,true)) {
         ESP_LOGE(TAG, "Failed to initialize task watchdog");
     }
-    //ESP_LOGE("HP","LilyGo setup complete.");   
 }   
 
 void LilyGo::setMsgQueue(QueueHandle_t q) { 
@@ -145,7 +142,6 @@ void LilyGo::EEPROM_setup() {
     }
     else
     {
-       //ESP_LOGE("HP", "Eeprom read f= %d, D= %d",frequencyInEeprom,detectorInEeprom);
        EEPROM.end();
     }
     freqMhz = frequencyInEeprom/1e6;
@@ -524,16 +520,10 @@ void LilyGo::handleConsole(const char *cmd)
       case 'h':
       {
           Serial.println("h:  help");    
-//          Serial.println("lx:  log level x (0=none,1=error,2=warn,3=info,4=debug,5=verbose)");      
-//          Serial.println("m:  toggle debug messages"); 
           Serial.println("d:  toggle Display");
           Serial.println("r:  register dump");
           Serial.println("x:  reboot");
           Serial.println("s:  Screen");
-        //   ESP_LOGE("HP","t:  Takt (240,160,80,40,20,10)");
-           
-           
-           //         ESP_LOGE("HP","w:  toggle WLAN");
           break;
       }      
       case 'd':
@@ -555,26 +545,7 @@ void LilyGo::handleConsole(const char *cmd)
           esp_restart();
           break;
       } 
-    //   case 'l':
-    //   {
-    //         esp_log_level_t level = (esp_log_level_t)(cmd[1]-48);
-    //         esp_log_level_set("HP", level);
-    //         Serial.printf("Log level set to %d\n",level);
-    //         ESP_LOGD("HP","D:Log level set to %d\n",level);
-    //         ESP_LOGE("HP","E:Log level set to %d\n",level);
-    //         esp_log_write(ESP_LOG_DEBUG, "HP", "Test nativ: %d\n", level);
-    //         break;
-    // }
 
-
-    //   case 'm':
-    //   {
-    //       char msg[40];
-    //       debug = (debug + 1)%2;
-    //       sprintf(msg,"debug messages %s", onOffState[debug]);
-    //       ESP_LOGE("HP","%s",msg);
-    //       break;
-    //   }
       case 's':
       {        
           uint8_t snr = cmd[1]-48;
@@ -585,33 +556,7 @@ void LilyGo::handleConsole(const char *cmd)
           break;
       }       
        
-    //   case 't':
-    //   {        
-    //       uint8_t takt;
-    //       sscanf(&cmd[1],"%d",&takt);
-    //       ESP_LOGE("HP","Aktueller CPU-Takt: %d MHz",getCpuFrequencyMhz());
-    //       if (setCpuFrequencyMhz(takt)) { // setCpuFrequencyMhz gibt true bei Erfolg zurück
-    //          ESP_LOGE("HP","Taktänderung auf %d MHz erfolgreich!",takt);
-    //       } else {
-    //          ESP_LOGE("HP","Fehler: Taktänderung auf %d MHz fehlgeschlagen oder nicht unterstützt.",takt);
-    //       }
-    //       ESP_LOGE("HP","Aktueller CPU-Takt: %d MHz",getCpuFrequencyMhz());
 
-
-    //     //   uint8_t snr = cmd[1]-48;
-    //     //   if(snr < FINALSCREEN)
-    //     //   {
-    //     //     SYS_setInactivityTimeout(false);
-    //     //     myLilyGoBoard.gotoNextScreen(cmd[1]-48);
-    //     //   }
-    //     //   uint8_t status=radio.getStatus();
-    //     //   ESP_LOGE("HP","Status=%x",status);
-    //     //   uint32_t ps   =radio.getPacketStatus();
-    //     //   ESP_LOGE("HP","PkgStatus=%x",ps);
-    //     //   uint16_t de   =radio.getDeviceErrors();
-    //     //   ESP_LOGE("HP","DeviceErrors=%x",de);
-    //       break;
-    //   }  
 
       default:
         Serial.printf("key was %d\n",*cmd);

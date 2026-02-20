@@ -134,6 +134,14 @@ extern "C" {
         return(crc.calc());
     }
 
+    uint16_t getCRC2(const uint8_t* buffer, size_t length, uint16_t initialValue ) 
+    {
+        CRC16 crc(CRC16_CCITT_FALSE_POLYNOME, initialValue);
+   //     crc.setInitial(initialValue);
+        crc.add(buffer, length);
+        return(crc.calc());
+    }
+
     uint32_t __RBIT(uint32_t v) {  //esp32_rbit
     v = ((v >> 1) & 0x55555555) | ((v & 0x55555555) << 1);
     v = ((v >> 2) & 0x33333333) | ((v & 0x33333333) << 2);

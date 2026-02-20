@@ -33,6 +33,7 @@ float SX1278_setRadioFrequencyHz(uint32_t freqHz, bool readRssi);
 void SX1278_readRSSI(float* newLevel);
 
 uint16_t getCRC(const uint8_t* buffer, size_t length);
+uint16_t getCRC2(const uint8_t* buffer, size_t length, uint16_t initialValue );
 
 #ifdef __cplusplus
 }

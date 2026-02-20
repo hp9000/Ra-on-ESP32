@@ -87,53 +87,54 @@ void _RS41_removeWhitening(uint8_t *buffer, int length)
 
 static uint8_t *g_rawFrame;
 static uint8_t _RS41_null;
-  uint8_t * _RS41_getDataAddressShort1 (int index)
-    {
-        if (index < 132) {
-            return &g_rawFrame[48 + 2 * index];
-        }
-        else if (index >= 231) {
-            return &g_rawFrame[index - 231];
-        }
-        else {
-            _RS41_null = 0;
-            return &_RS41_null;
-        }
-    }
 
-    uint8_t * _RS41_getDataAddressShort2 (int index)
-    {
-        if (index < 132) {
-            return &g_rawFrame[49 + 2 * index];
-        }
-        else if (index >= 231) {
-            return &g_rawFrame[index - 207];
-        }
-        else {
-            _RS41_null = 0;
-            return &_RS41_null;
-        }
+uint8_t * _RS41_getDataAddressShort1 (int index)
+{
+    if (index < 132) {
+        return &g_rawFrame[48 + 2 * index];
     }
+    else if (index >= 231) {
+        return &g_rawFrame[index - 231];
+    }
+    else {
+        _RS41_null = 0;
+        return &_RS41_null;
+    }
+}
 
-    uint8_t * _RS41_getDataAddressLong1 (int index)
-    {
-        if (index < 231) {
-            return &g_rawFrame[48 + 2 * index];
-        }
-        else {
-            return &g_rawFrame[index - 231];
-        }
+uint8_t * _RS41_getDataAddressShort2 (int index)
+{
+    if (index < 132) {
+        return &g_rawFrame[49 + 2 * index];
     }
+    else if (index >= 231) {
+        return &g_rawFrame[index - 207];
+    }
+    else {
+        _RS41_null = 0;
+        return &_RS41_null;
+    }
+}
 
-    uint8_t * _RS41_getDataAddressLong2 (int index)
-    {
-        if (index < 231) {
-            return &g_rawFrame[49 + 2 * index];
-        }
-        else {
-            return &g_rawFrame[index - 207];
-        }
+uint8_t * _RS41_getDataAddressLong1 (int index)
+{
+    if (index < 231) {
+        return &g_rawFrame[48 + 2 * index];
     }
+    else {
+        return &g_rawFrame[index - 231];
+    }
+}
+
+uint8_t * _RS41_getDataAddressLong2 (int index)
+{
+    if (index < 231) {
+        return &g_rawFrame[49 + 2 * index];
+    }
+    else {
+        return &g_rawFrame[index - 207];
+    }
+}
 
 
 /* Reed-Solomon error correction */
@@ -143,8 +144,8 @@ LPCLIB_Result _RS41_checkReedSolomon (uint8_t rawFrame[], int *pNumErrors, _Bool
     int numErrors2 = 0;
     LPCLIB_Result result;
     _Bool longFrame = false;
-    uint8_t _RS41_null;
 
+    g_rawFrame = rawFrame;
 
       /* Make sure the correct Galois field is used */
     REEDSOLOMON_makeGaloisField(0x11D);

@@ -12,6 +12,8 @@
 #include "cf06private.h"
 #include "bch.h"
 
+#include "bridge.h"
+
 /*
  * CF-06-AH frame parameters
  *
@@ -127,6 +129,8 @@ static void _CF06_sendKiss (CF06_InstanceData *instance)
                 );
 
     if (length > 0) {
+        ttgo_setDisplayData(latitude,longitude,instance->gps.observerLLA.alt,
+            instance->rxFrequencyMHz,instance->name,instance->rssi,instance->frameCounter);
         SYS_send2Host(HOST_CHANNEL_INFO, s);
     }
 }
@@ -183,7 +187,7 @@ LPCLIB_Result CF06_processBlock (
 
     /* Error correction for outer block */
     int errorsOuter = 0;
-    _Bool frameOk = false;
+    _Bool frameOk = false; 
     if (_CF06_checkReedSolomonOuter (handle->pRawData->rawData.dat8, &errorsOuter) == LPCLIB_SUCCESS) {
         /* CRC of outer block ok? */
         handle->pRawData->block2.crc = __REV16(handle->pRawData->block2.crc); /* Big endian */
