@@ -2,7 +2,6 @@
 A portable Radiosonde Receiver using the iRa App, for the price of a TTGO board
 
 This is a ported firmware for a Ra Radiosonde Receiver running on ESP32 HW (like TTGO Board or Heltec LoRa32 V3).
-The RX chip on this boards does not support AFSK demodulation, so some sonde types (IMET4, SRSC and others) cannot be decoded.
 
 <img width="384" height="384" alt="image" src="https://github.com/user-attachments/assets/411f8b53-64cf-4430-b692-602dfc5b7f42" />
 
@@ -51,6 +50,8 @@ For installation use https://www.espboards.dev/tools/program/ or [esptool](docs)
   </tr>
 </table>
 More sonde types might be implemented, if you send me HW samples or do the testing.
+
+The RX chip on this boards does not support AFSK demodulation, so some sonde types (IMET4, SRSC and others) cannot be decoded.
 
 ## Acknowledgements
 A big Thanks! for the support of this project to Demy, Dennis, DF9DQ and DL5RCB!
